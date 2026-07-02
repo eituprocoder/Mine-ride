@@ -1,9 +1,19 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mine Ride - 3D Multiplayer</title>
+    <script>
+    if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+      .then(() => console.log('Service Worker registrado correctamente'))
+      .catch(err => console.log('Error al registrar:', err));
+  }
+</script>
+
+<!-- No olvides vincular el manifest en el <head> -->
+<link rel="manifest" href="manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -12,7 +22,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; user-select: none; }
         body { background-color: var(--bg-color); color: white; overflow: hidden; touch-action: none; }
         
-        /* UI Estilos */
+        /* UI Styles */
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a2e 0%, #000000 100%); transition: opacity 0.5s; overflow-y: auto;}
         .panel { background: rgba(10, 10, 20, 0.95); border: 2px solid var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue); padding: 20px; border-radius: 10px; width: 90%; max-width: 450px; text-align: center; display: none; margin: 20px 0; }
         .active-panel { display: flex; flex-direction: column; gap: 15px; }
@@ -44,7 +54,7 @@
         
         #item-slot { position: absolute; top: 140px; right: 10px; width: 60px; height: 60px; background: rgba(0,0,0,0.8); border: 2px dashed gold; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
 
-        /* Controles Móviles */
+        /* Mobile Controls */
         .controls { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 15px; pointer-events: auto; align-items: flex-end; }
         .btn-dir, .btn-action { width: 60px; height: 60px; background: rgba(0, 243, 255, 0.2); border: 2px solid var(--neon-blue); border-radius: 50%; color: white; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); margin: 5px;}
         .btn-dir:active, .btn-action:active { background: rgba(0, 243, 255, 0.6); }
@@ -54,59 +64,97 @@
         .btn-item:active { background: rgba(255, 215, 0, 0.7); color: black;}
         .a-pad { display: flex; flex-direction: column; align-items: center; }
         .a-pad-row { display: flex; }
+
+        /* Countdown Overlay Screen */
+        #countdown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        #countdown-text {
+            font-size: 8rem;
+            font-weight: 900;
+            color: var(--neon-pink);
+            text-shadow: 0 0 30px var(--neon-pink), 0 0 60px #000;
+            font-family: 'Courier New', monospace;
+            animation: countdownPulse 0.5s ease-out infinite alternate;
+        }
+        @keyframes countdownPulse {
+            from { transform: scale(0.8); }
+            to { transform: scale(1.2); }
+        }
     </style>
 </head>
 <body>
 
+    <!-- Ready? Go! Screen Countdown Overlay -->
+    <div id="countdown-overlay">
+        <div id="countdown-text">READY?</div>
+    </div>
+
     <div id="ui-layer">
         <div id="panel-profile" class="panel active-panel">
             <h1>Mine Ride</h1>
-            <img id="preview-pic" class="profile-pic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="Perfil">
-            <div class="stats">🏆 Trofeos: <span id="trophy-count">0</span> | <span id="league-name">Bronce</span></div>
-            <input type="text" id="player-name" placeholder="Tu Nombre" maxlength="12" value="Ethan">
-            <label class="file-lbl">Foto<input type="file" id="file-pic" accept="image/*"></label>
-            <label>Color Vagoneta:</label><input type="color" id="player-color" value="#00f3ff">
-            <button onclick="showPanel('panel-menu')">Entrar</button>
+            <img id="preview-pic" class="profile-pic" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="Profile">
+            <div class="stats">🏆 Trophies: <span id="trophy-count">0</span> | <span id="league-name">Bronze</span></div>
+            <input type="text" id="player-name" placeholder="Your Name" maxlength="12" value="Ethan">
+            <label class="file-lbl">Photo<input type="file" id="file-pic" accept="image/*"></label>
+            <label>Cart Color:</label><input type="color" id="player-color" value="#00f3ff">
+            <button onclick="saveProfileData().then(() => showPanel('panel-menu'))">Enter</button>
         </div>
 
         <div id="panel-menu" class="panel">
-            <h1>Multijugador</h1>
-            <button onclick="hostGame()">Crear Sala (Host)</button>
+            <h1>Multiplayer</h1>
+            <button onclick="hostGame()">Create Lobby (Host)</button>
             <hr style="border-color:#333">
-            <input type="text" id="join-code" placeholder="Código de 10 dígitos" maxlength="10">
-            <button style="border-color: var(--neon-pink); color: var(--neon-pink)" onclick="joinGame()">Unirse</button>
+            <input type="text" id="join-code" placeholder="10-Digit Room Code" maxlength="10">
+            <button style="border-color: var(--neon-pink); color: var(--neon-pink)" onclick="joinGame()">Join Lobby</button>
             <hr style="border-color:#333">
-            <button onclick="showPanel('panel-tutorial')" style="border-color: gold; color: gold; font-size: 1rem;">📖 Cómo Jugar</button>
-            <button onclick="showPanel('panel-profile')" style="font-size: 0.8rem; border:none;">Volver al Perfil</button>
+            <button onclick="showPanel('panel-tutorial')" style="border-color: gold; color: gold; font-size: 1rem;">📖 How to Play</button>
+            <button onclick="showPanel('panel-profile')" style="font-size: 0.8rem; border:none;">Back to Profile</button>
         </div>
 
         <div id="panel-tutorial" class="panel" style="text-align: left; font-size: 0.9rem;">
-            <h1 style="text-align: center;">Cómo Jugar</h1>
-            <p><strong>Objetivo:</strong> Llega a la meta antes que los demás esquivando obstáculos. Si chocas, vuelves al inicio.</p>
-            <h2>Controles (4 Raíles):</h2>
-            <p>◀ ▶ : Cambia tu vagoneta entre los 4 carriles fijos.</p>
-            <p>⬆ : Salta para esquivar obstáculos bajos.</p>
-            <p>+ / - : Acelera o frena tu vagoneta.</p>
-            <h2>Power-Ups (Picos ❓):</h2>
-            <p>Choca con un pico dorado para ganar una ventaja. Úsala con el botón amarillo [Usar].</p>
-            <ul>
-                <li>🚀 <b>Nitro:</b> Doble velocidad temporal.</li>
-                <li>🛡️ <b>Escudo:</b> Te salva de 1 choque.</li>
-                <li>👻 <b>Fantasma:</b> Eres intocable por 5 seg.</li>
-                <li>🦘 <b>Súper Salto:</b> Tu próximo salto es enorme.</li>
-                <li>🐢 <b>Tortuga:</b> Frena a todos tus oponentes.</li>
-                <li>💎 <b>Mini:</b> Te encoges para esquivar mejor.</li>
+            <h1 style="text-align: center;">How to Play</h1>
+            <p><strong>Goal:</strong> Reach the finish line before others while dodging obstacles. If you crash, you restart at the beginning.</p>
+            <h2>Controls (4 Rails):</h2>
+            <p>◀ ▶ or [A / D]: Switch between the 4 fixed rail tracks.</p>
+            <p>⬆ or [W / Space]: Jump to dodge low obstacles.</p>
+            <p>+ / - or [E / Q]: Accelerate or decelerate your mine cart. (Speed holds constant unless keys are held down!)</p>
+            <h2>Power-Ups (Pickaxes ❓):</h2>
+            <p>Collide with a golden pickaxe to get an item advantage. Activate it with the yellow [USE] button or [S / Shift].</p>
+            <ul style="max-height: 150px; overflow-y: auto; list-style-type: none; padding-left: 5px;">
+                <li>🚀 <b>Nitro:</b> Temporary double speed boost.</li>
+                <li>🛡️ <b>Shield:</b> Protects against 1 obstacle crash.</li>
+                <li>👻 <b>Ghost:</b> Intangible through obstacles for 5 seconds.</li>
+                <li>🦘 <b>Super Jump:</b> Your next jump is huge.</li>
+                <li>🐢 <b>Turtle:</b> Drastically slows down all opponents.</li>
+                <li>💎 <b>Mini:</b> Shrinks you to fit through tight gaps.</li>
+                <li>💣 <b>Bomb:</b> Drops an explosive TNT block behind you.</li>
+                <li>⚡ <b>Lightning:</b> Shocks and spins out all other players.</li>
+                <li>❄️ <b>Freeze:</b> Encases other racers in block of ice.</li>
+                <li>🧲 <b>Magnet:</b> Automatically pulls nearby items.</li>
+                <li>🌀 <b>Teleport:</b> Blinks safely forward 45 meters.</li>
+                <li>🔥 <b>Fire Trail:</b> Spawns flame trail that burns followers.</li>
             </ul>
-            <button onclick="showPanel('panel-menu')" style="margin-top:15px; width:100%; display:block;">Cerrar</button>
+            <button onclick="showPanel('panel-menu')" style="margin-top:15px; width:100%; display:block;">Close</button>
         </div>
 
         <div id="panel-lobby" class="panel">
-            <h1>Sala de Espera</h1>
-            <h3 style="color: var(--neon-blue); letter-spacing: 2px;" id="room-code-display">Cargando...</h3>
+            <h1>Lobby Status</h1>
+            <h3 style="color: var(--neon-blue); letter-spacing: 2px;" id="room-code-display">Loading...</h3>
             <div id="qrcode"></div>
             
             <div id="map-selection" style="margin: 10px 0; display:none;">
-                <label style="color:var(--neon-pink);">Mapa:</label>
+                <label style="color:var(--neon-pink);">Map:</label>
                 <select id="map-select" onchange="updateLobbyState()">
                     <option value="caves">The Adventure Caves</option>
                     <option value="geode">The Geode Mines</option>
@@ -115,16 +163,16 @@
             </div>
             <p id="client-map-display" style="color:var(--neon-pink); display:none; margin: 5px 0;"></p>
 
-            <p id="lobby-status">Esperando jugadores (2-10)...</p>
+            <p id="lobby-status">Waiting for exactly 2-8 players...</p>
             <ul class="player-list" id="lobby-players"></ul>
-            <button id="btn-start" onclick="startGameHost()" style="display: none; background: var(--neon-pink); color: white;">Comenzar</button>
-            <button onclick="window.location.reload()" style="margin-top:10px; border:none; font-size:0.8rem;">Salir</button>
+            <button id="btn-start" onclick="startGameHost()" style="display: none; background: var(--neon-pink); color: white;">Start Race</button>
+            <button onclick="window.location.reload()" style="margin-top:10px; border:none; font-size:0.8rem;">Leave Lobby</button>
         </div>
         
         <div id="panel-end" class="panel">
-            <h1 id="end-title">¡Terminada!</h1>
+            <h1 id="end-title">Finished!</h1>
             <div id="end-stats" class="stats" style="margin-bottom: 20px;"></div>
-            <button onclick="window.location.reload()">Volver al Menú</button>
+            <button onclick="window.location.reload()">Back to Menu</button>
         </div>
     </div>
 
@@ -139,7 +187,7 @@
                 <div class="btn-dir" id="btn-right">▶</div>
             </div>
             <div class="center-pad">
-                <div class="btn-action btn-item" id="btn-item">USAR</div>
+                <div class="btn-action btn-item" id="btn-item">USE</div>
             </div>
             <div class="a-pad">
                 <div class="btn-action" id="btn-jump" style="background: rgba(255, 0, 234, 0.3); border-color: var(--neon-pink);">⬆</div>
@@ -153,7 +201,52 @@
 
     <script>
         // ==========================================
-        // SISTEMAS BÁSICOS Y AUDIO
+        // INDEXEDDB DATABASE FOR STORAGE
+        // ==========================================
+        const DB_NAME = "MineRideDB";
+        const STORE_NAME = "profileStore";
+        const DB_VERSION = 1;
+
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = e => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME);
+                    }
+                };
+                request.onsuccess = e => resolve(e.target.result);
+                request.onerror = e => reject(e.target.error);
+            });
+        }
+
+        function getProfile() {
+            return initDB().then(db => {
+                return new Promise((resolve) => {
+                    const tx = db.transaction(STORE_NAME, "readonly");
+                    const store = tx.objectStore(STORE_NAME);
+                    const req = store.get("user_profile");
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => resolve(null);
+                });
+            });
+        }
+
+        function saveProfile(profileData) {
+            return initDB().then(db => {
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, "readwrite");
+                    const store = tx.objectStore(STORE_NAME);
+                    const req = store.put(profileData, "user_profile");
+                    req.onsuccess = () => resolve();
+                    req.onerror = () => reject(req.error);
+                });
+            });
+        }
+
+        // ==========================================
+        // BASIC SYSTEMS AND AUDIO
         // ==========================================
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playTone(freq, type, duration, vol=0.1) {
@@ -177,24 +270,54 @@
         function stopBGM() { clearInterval(SFX.bgm); }
 
         let profile = { name: "Ethan", pic: "", color: "#00f3ff", trophies: 0 };
-        function loadProfile() {
-            const saved = localStorage.getItem("mineride_profile");
-            if (saved) { profile = JSON.parse(saved); document.getElementById('player-name').value = profile.name; document.getElementById('player-color').value = profile.color; if(profile.pic) document.getElementById('preview-pic').src = profile.pic; }
+        
+        async function loadProfileData() {
+            try {
+                const saved = await getProfile();
+                if (saved) { 
+                    profile = saved; 
+                    document.getElementById('player-name').value = profile.name; 
+                    document.getElementById('player-color').value = profile.color; 
+                    if(profile.pic) document.getElementById('preview-pic').src = profile.pic; 
+                }
+            } catch(e) {
+                console.error("Failed to load profile from IndexedDB", e);
+            }
             document.getElementById('trophy-count').innerText = profile.trophies;
-            document.getElementById('league-name').innerText = profile.trophies >= 1000 ? "Maestro Neón" : profile.trophies >= 600 ? "Cristal" : profile.trophies >= 300 ? "Oro" : profile.trophies >= 100 ? "Plata" : "Bronce";
+            document.getElementById('league-name').innerText = profile.trophies >= 1000 ? "Neon Master" : profile.trophies >= 600 ? "Crystal" : profile.trophies >= 300 ? "Gold" : profile.trophies >= 100 ? "Silver" : "Bronze";
         }
-        document.getElementById('file-pic').addEventListener('change', e => { const r = new FileReader(); r.onload = ev => { profile.pic = ev.target.result; document.getElementById('preview-pic').src = profile.pic; }; if(e.target.files[0]) r.readAsDataURL(e.target.files[0]); });
+
+        async function saveProfileData() {
+            profile.name = document.getElementById('player-name').value;
+            profile.color = document.getElementById('player-color').value;
+            try {
+                await saveProfile(profile);
+            } catch(e) {
+                console.error("Failed to save profile into IndexedDB", e);
+            }
+        }
+
+        document.getElementById('file-pic').addEventListener('change', e => { 
+            const r = new FileReader(); 
+            r.onload = ev => { 
+                profile.pic = ev.target.result; 
+                document.getElementById('preview-pic').src = profile.pic; 
+                saveProfileData();
+            }; 
+            if(e.target.files[0]) r.readAsDataURL(e.target.files[0]); 
+        });
+
         function showPanel(id) { document.querySelectorAll('.panel').forEach(p => p.classList.remove('active-panel')); document.getElementById(id).classList.add('active-panel'); }
-        loadProfile();
+        loadProfileData();
 
         // ==========================================
-        // RED P2P (PEERJS)
+        // P2P NETWORKING (PEERJS)
         // ==========================================
         let peer, isHost = false, roomId = "", connections = {}, hostConnection = null;
         let playersData = {}, trackSeed = 0;
         let selectedMapId = "caves";
 
-        function initPeer(id, cb) { peer = new Peer(id); peer.on('open', cb); peer.on('error', err => alert("Error P2P: " + err.type)); }
+        function initPeer(id, cb) { peer = new Peer(id); peer.on('open', cb); peer.on('error', err => alert("P2P Error: " + err.type)); }
 
         function hostGame() {
             isHost = true;
@@ -209,13 +332,17 @@
                 trackSeed = Math.random();
                 addPlayerToLobby(peer.id, profile);
                 peer.on('connection', conn => {
-                    if(Object.keys(connections).length >= 9) { conn.send({type: 'error'}); setTimeout(()=>conn.close(), 500); return; }
+                    if(Object.keys(connections).length >= 7) { conn.send({type: 'error'}); setTimeout(()=>conn.close(), 500); return; } // Max 8 players
                     connections[conn.peer] = conn;
                     conn.on('data', data => {
                         if(data.type === 'join') { playersData[conn.peer] = { ...data.profile, id: conn.peer, z: 0, x: 0, y: 0 }; updateHostLobby(); }
                         else if (data.type === 'updatePos') { if(playersData[conn.peer]) { playersData[conn.peer].x = data.x; playersData[conn.peer].y = data.y; playersData[conn.peer].z = data.z; } }
                         else if (data.type === 'win') handlePlayerWin(conn.peer);
-                        else if (data.type === 'turtle') broadcast({type: 'turtle', sender: conn.peer}); // Reenviar ataque
+                        else if (data.type === 'turtle') broadcast({type: 'turtle', sender: conn.peer}); // Forward turtle slow-down
+                        else if (data.type === 'spawnBomb') { broadcast({ type: 'spawnBomb', x: data.x, z: data.z }); spawnLocalBomb(data.x, data.z); }
+                        else if (data.type === 'lightning') { broadcast({ type: 'lightning', sender: conn.peer }); triggerLightningEffect(conn.peer); }
+                        else if (data.type === 'freeze') { broadcast({ type: 'freeze', sender: conn.peer }); triggerFreezeEffect(conn.peer); }
+                        else if (data.type === 'burn') { broadcast({ type: 'burn', target: data.target }); if (data.target === peer.id) triggerBurnEffect(); }
                     });
                     conn.on('close', () => { delete connections[conn.peer]; delete playersData[conn.peer]; updateHostLobby(); });
                 });
@@ -230,13 +357,19 @@
         function updateHostLobby() {
             document.getElementById('lobby-players').innerHTML = '';
             for(let id in playersData) addPlayerToLobby(id, playersData[id]);
-            document.getElementById('btn-start').style.display = Object.keys(playersData).length >= 2 ? 'block' : 'none';
+            
+            const playerCount = Object.keys(playersData).length;
+            // Requirement 10: Only when there are EXACTLY 2 to 8 players, the host can tap the start game button.
+            const isRangeValid = (playerCount >= 2 && playerCount <= 8);
+            document.getElementById('btn-start').style.display = isRangeValid ? 'block' : 'none';
+            document.getElementById('lobby-status').innerText = isRangeValid ? `Ready! ${playerCount}/8 racers are in lobby.` : `Waiting for racers (Must be exactly 2-8, current: ${playerCount})...`;
+            
             broadcast({ type: 'lobbyUpdate', players: playersData, map: selectedMapId });
         }
 
         function joinGame() {
             const rawId = document.getElementById('join-code').value;
-            if(rawId.length !== 10) return alert("Código de 10 dígitos requerido.");
+            if(rawId.length !== 10) return alert("10-digit Room Code required.");
             roomId = "mineride_" + rawId;
             showPanel('panel-lobby'); document.getElementById('room-code-display').innerText = rawId; document.getElementById('qrcode').style.display = 'none';
             document.getElementById('client-map-display').style.display = 'block';
@@ -247,13 +380,17 @@
                 hostConnection.on('data', data => {
                     if(data.type === 'lobbyUpdate') {
                         playersData = data.players; selectedMapId = data.map;
-                        document.getElementById('client-map-display').innerText = "Mapa: " + MAPS[selectedMapId].name;
+                        document.getElementById('client-map-display').innerText = "Map: " + MAPS[selectedMapId].name;
                         document.getElementById('lobby-players').innerHTML = '';
                         for(let id in playersData) addPlayerToLobby(id, playersData[id]);
                     } else if (data.type === 'start') { trackSeed = data.seed; selectedMapId = data.map; init3DGame(); }
                     else if (data.type === 'gameState') { playersData = data.players; }
                     else if (data.type === 'gameOver') showEndScreen(data.winnerName, data.winnerId === peer.id);
                     else if (data.type === 'turtle' && data.sender !== peer.id) applyTurtleEffect();
+                    else if (data.type === 'spawnBomb') { spawnLocalBomb(data.x, data.z); }
+                    else if (data.type === 'lightning' && data.sender !== peer.id) { triggerLightningEffect(); }
+                    else if (data.type === 'freeze' && data.sender !== peer.id) { triggerFreezeEffect(); }
+                    else if (data.type === 'burn' && data.target === peer.id) { triggerBurnEffect(); }
                 });
             });
         }
@@ -268,31 +405,95 @@
         function startGameHost() { broadcast({ type: 'start', seed: trackSeed, map: selectedMapId }); init3DGame(); }
 
         // ==========================================
-        // MOTOR 3D Y FÍSICAS
+        // 3D ENGINE, PROCEDURAL MAPS AND PARTICLES
         // ==========================================
         let scene, camera, renderer, myCart;
         let otherCarts = {}, obstacles = [], itemBoxes = [];
-        let isPlaying = false;
+        let isPlaying = false, isCountdown = false;
         const trackLength = 2000;
         
-        // Mapas
+        // Maps
         const MAPS = {
             caves: { name: "The Adventure Caves", fog: 0x111111, grid: 0x444444, light: 0xffffff, rail: 0x888888, obs: 0x553311 },
             geode: { name: "The Geode Mines", fog: 0x1a0033, grid: 0xaa00ff, light: 0x00ffff, rail: 0x8800ff, obs: 0x00ffcc },
             lava: { name: "The Lava World", fog: 0x330000, grid: 0xff3300, light: 0xffaa00, rail: 0x441111, obs: 0x111111 }
         };
 
-        // Físicas y 4 Carriles
+        // Physics Configurations & 4 Lanes
         let input = { jump: false, speedUp: false, speedDown: false };
-        const LANES = [-2.25, -0.75, 0.75, 2.25]; // 4 Carriles
-        let currentLaneIdx = 1; // Empieza en carril 2
-        let speed = 0; let maxSpeed = 3.5;
+        const LANES = [-2.25, -0.75, 0.75, 2.25]; 
+        let currentLaneIdx = 1; 
+        let speed = 1.5; let maxSpeed = 3.5;
         let velocityY = 0; let isGrounded = true;
         
-        // Power-ups
-        const POWERUPS = ["🚀", "🛡️", "👻", "🦘", "🐢", "💎"];
+        // Extended 12 Power-ups
+        const POWERUPS = ["🚀", "🛡️", "👻", "🦘", "🐢", "💎", "💣", "⚡", "❄️", "🧲", "🌀", "🔥"];
         let myItem = null;
-        let effects = { shield: false, ghost: false, superJump: false };
+        let effects = { 
+            shield: false, 
+            ghost: false, 
+            superJump: false,
+            spinTime: 0,
+            freezeTime: 0,
+            magnetTime: 0,
+            fireTrailTime: 0
+        };
+
+        // Custom Particle System (Requirement 3)
+        let particles = [];
+        function createParticleBurst(position, colorHex, count = 20, size = 0.2) {
+            const geo = new THREE.BoxGeometry(size, size, size);
+            const mat = new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.9 });
+            for (let i = 0; i < count; i++) {
+                const p = new THREE.Mesh(geo, mat);
+                p.position.copy(position);
+                p.position.x += (Math.random() - 0.5) * 0.5;
+                p.position.y += (Math.random() - 0.5) * 0.5;
+                p.position.z += (Math.random() - 0.5) * 0.5;
+                scene.add(p);
+                particles.push({
+                    mesh: p,
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.18,
+                        (Math.random()) * 0.18,
+                        (Math.random() - 0.5) * 0.18
+                    ),
+                    life: 1.0,
+                    decay: 0.02 + Math.random() * 0.03
+                });
+            }
+        }
+
+        // Ready? Go! Countdown Animation Screen (Requirement 9)
+        function triggerRaceCountdown() {
+            isCountdown = true;
+            const overlay = document.getElementById('countdown-overlay');
+            const textEl = document.getElementById('countdown-text');
+            overlay.style.display = 'flex';
+            
+            let count = 3;
+            textEl.innerText = count;
+            playTone(450, 'sine', 0.2, 0.15);
+
+            const countdownInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    textEl.innerText = count;
+                    playTone(450, 'sine', 0.2, 0.15);
+                } else if (count === 0) {
+                    textEl.innerText = "READY?";
+                    playTone(450, 'sine', 0.2, 0.15);
+                } else if (count === -1) {
+                    textEl.innerText = "GO!";
+                    playTone(900, 'sine', 0.4, 0.2);
+                    isCountdown = false;
+                    speed = 1.5; // Default running speed
+                } else {
+                    clearInterval(countdownInterval);
+                    overlay.style.display = 'none';
+                }
+            }, 1000);
+        }
 
         function init3DGame() {
             document.getElementById('ui-layer').style.display = 'none';
@@ -313,59 +514,123 @@
 
             const grid = new THREE.GridHelper(200, 100, m.grid, m.fog); grid.position.y = -0.5; scene.add(grid);
 
-            // 4 Raíles
+            // 4 Rail Tracks
             const railGeo = new THREE.BoxGeometry(0.3, 0.2, trackLength + 100);
             const railMat = new THREE.MeshStandardMaterial({ color: m.rail, roughness: 0.4 });
             LANES.forEach(lx => {
                 const r = new THREE.Mesh(railGeo, railMat); r.position.set(lx, -0.4, -trackLength/2); scene.add(r);
             });
 
-            // Generación Procedural
+            // Procedural Obstacles & Pickaxes
             Math.seedrandom = function(s) { return function() { s = Math.sin(s) * 10000; return s - Math.floor(s); }; };
             const random = Math.seedrandom(trackSeed);
             
             const obsGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
             const obsMat = new THREE.MeshStandardMaterial({ color: m.obs });
             
-            const pGeo = new THREE.Group(); // Pico ItemBox
-            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1, 1), new THREE.MeshBasicMaterial({color: 0x8b4513}));
-            const head = new THREE.Mesh(new THREE.BoxGeometry(1.2,0.3,0.3), new THREE.MeshBasicMaterial({color: 0xffd700}));
-            head.position.y = 0.4; pGeo.add(handle); pGeo.add(head);
+            // Stylized Pickaxe 3D Model (Requirement 4: Anim hover/spin)
+            const pickaxeTemplate = new THREE.Group();
+            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.1), new THREE.MeshBasicMaterial({color: 0x8b4513}));
+            handle.rotation.z = Math.PI / 4;
+            const head = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.25, 0.25), new THREE.MeshBasicMaterial({color: 0xffd700}));
+            head.position.set(0.3, 0.3, 0);
+            head.rotation.z = -Math.PI / 6;
+            pickaxeTemplate.add(handle); 
+            pickaxeTemplate.add(head);
 
             for(let i = 30; i < trackLength - 50; i += 25) {
                 const rnd = random();
                 const laneX = LANES[Math.floor(random() * 4)];
                 
-                if(rnd > 0.5) { // 50% chance de algo
-                    if(rnd > 0.85) { // Item Box (Pico ❓)
-                        const item = pGeo.clone();
+                if(rnd > 0.45) { 
+                    if(rnd > 0.82) { // Item Pickaxe (Golden Pick ❓)
+                        const item = pickaxeTemplate.clone();
                         item.position.set(laneX, 0.5, -i);
                         scene.add(item);
                         itemBoxes.push({ box: new THREE.Box3().setFromObject(item), mesh: item, active: true });
-                    } else { // Obstáculo
+                    } else { // Static Hard Obstacle
                         const obs = new THREE.Mesh(obsGeo, obsMat);
                         obs.position.set(laneX, 0.2, -i);
                         scene.add(obs);
-                        obstacles.push({ box: new THREE.Box3().setFromObject(obs), mesh: obs });
+                        obstacles.push({ box: new THREE.Box3().setFromObject(obs), mesh: obs, isBomb: false });
                     }
                 }
             }
 
+            // Create customizable stylised vehicle
             myCart = createCartMesh(profile.color); scene.add(myCart);
             for(let id in playersData) { if(id !== peer.id) { let c = createCartMesh(playersData[id].color); otherCarts[id] = c; scene.add(c); } }
 
-            setupControls(); startBGM(); isPlaying = true; animate();
+            setupControls(); 
+            startBGM(); 
+            isPlaying = true; 
+            triggerRaceCountdown();
+            animate();
+            
             if(isHost) setInterval(hostBroadcastLoop, 50); else setInterval(clientSendLoop, 50);
         }
 
+        // Detailed Stylized Mine Cart Mesh (Requirement 6)
         function createCartMesh(hexColor) {
             const group = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.8), new THREE.MeshStandardMaterial({ color: hexColor, transparent: true }));
-            group.add(body); return group;
+            
+            // Core metal container bucket (metal roughness & neon color body)
+            const bodyMat = new THREE.MeshStandardMaterial({ 
+                color: hexColor, 
+                roughness: 0.15, 
+                metalness: 0.7,
+                transparent: true,
+                opacity: 1.0
+            });
+            
+            const frameGeo = new THREE.BoxGeometry(1.2, 0.6, 1.8);
+            const mainBody = new THREE.Mesh(frameGeo, bodyMat);
+            mainBody.position.y = 0.35;
+            group.add(mainBody);
+            
+            // Stylized Silver Side Rails / Plates
+            const sideRimMat = new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.9, roughness: 0.1 });
+            const leftRim = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 1.9), sideRimMat);
+            leftRim.position.set(-0.62, 0.35, 0);
+            group.add(leftRim);
+            
+            const rightRim = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 1.9), sideRimMat);
+            rightRim.position.set(0.62, 0.35, 0);
+            group.add(rightRim);
+
+            // Front bright headlight sphere
+            const lampGeo = new THREE.SphereGeometry(0.15, 12, 12);
+            const lampMat = new THREE.MeshBasicMaterial({ color: 0xfffca1 });
+            const lamp = new THREE.Mesh(lampGeo, lampMat);
+            lamp.position.set(0, 0.45, -0.92);
+            group.add(lamp);
+
+            // 4 Wheels (Sideways cylinders) - Requirement 4 & 6
+            const wheelGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.12, 16);
+            wheelGeo.rotateZ(Math.PI / 2); // align wheels
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1f1f1f, roughness: 0.8 });
+            
+            const offsets = [
+                [-0.6, 0.08, -0.5], // front-left
+                [0.6, 0.08, -0.5],  // front-right
+                [-0.6, 0.08, 0.5],  // back-left
+                [0.6, 0.08, 0.5]    // back-right
+            ];
+            
+            const wheels = [];
+            offsets.forEach(pos => {
+                const w = new THREE.Mesh(wheelGeo, wheelMat);
+                w.position.set(pos[0], pos[1], pos[2]);
+                group.add(w);
+                wheels.push(w);
+            });
+            
+            group.userData = { wheels: wheels, hexColor: hexColor };
+            return group;
         }
 
         // ==========================================
-        // BUCLE PRINCIPAL Y LÓGICA
+        // GAMEPLAY TICKS AND NET ACTIONS
         // ==========================================
         function hostBroadcastLoop() {
             if(!isPlaying) return;
@@ -383,93 +648,321 @@
 
         function showEndScreen(winnerName, isMe) {
             document.getElementById('game-overlay').style.display = 'none'; document.getElementById('ui-layer').style.display = 'flex'; showPanel('panel-end');
-            document.getElementById('end-title').innerText = isMe ? "¡HAS GANADO! 🏆" : `Ganó ${winnerName}`;
+            document.getElementById('end-title').innerText = isMe ? "YOU WON! 🏆" : `Winner: ${winnerName}`;
             document.getElementById('end-title').style.color = isMe ? 'var(--neon-blue)' : 'var(--neon-pink)';
             profile.trophies = Math.max(0, profile.trophies + (isMe ? 10 : -5));
-            localStorage.setItem("mineride_profile", JSON.stringify(profile));
-            document.getElementById('end-stats').innerText = `Trofeos: ${profile.trophies}`;
+            saveProfileData();
+            document.getElementById('end-stats').innerText = `Trophies: ${profile.trophies}`;
         }
 
-        function applyTurtleEffect() { speed *= 0.3; myCart.children[0].material.color.setHex(0x00ff00); setTimeout(() => myCart.children[0].material.color.setHex(profile.color.replace('#','0x')), 3000); }
+        function applyTurtleEffect() { 
+            speed *= 0.3; 
+            createParticleBurst(myCart.position, 0x00ff00, 10, 0.1);
+            myCart.children[0].material.color.setHex(0x00ff00); 
+            setTimeout(() => myCart.children[0].material.color.setHex(profile.color.replace('#','0x')), 3000); 
+        }
 
+        function spawnLocalBomb(x, z) {
+            const bombGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+            const bombMat = new THREE.MeshStandardMaterial({ color: 0xcc3300, roughness: 0.2, metalness: 0.5 });
+            const bomb = new THREE.Mesh(bombGeo, bombMat);
+            bomb.position.set(x, 0.2, z);
+            scene.add(bomb);
+            
+            // Yellow TNT block stripe
+            const stripeGeo = new THREE.BoxGeometry(1.05, 0.25, 1.05);
+            const stripeMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+            const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+            stripe.position.y = 0;
+            bomb.add(stripe);
+
+            obstacles.push({ box: new THREE.Box3().setFromObject(bomb), mesh: bomb, isBomb: true });
+            createParticleBurst(bomb.position, 0xffcc00, 5, 0.1);
+        }
+
+        function triggerLightningEffect() {
+            effects.spinTime = 1.0;
+            speed *= 0.4;
+            SFX.crash();
+            createParticleBurst(myCart.position, 0x00ffff, 15, 0.2);
+        }
+
+        function triggerFreezeEffect() {
+            effects.freezeTime = 3.5;
+            SFX.crash();
+        }
+
+        function triggerBurnEffect() {
+            speed *= 0.5;
+            createParticleBurst(myCart.position, 0xffaa00, 8, 0.15);
+        }
+
+        // Use Item Powerup trigger
         function useItem() {
             if(myItem === null) return;
             SFX.itemUse();
             const idx = POWERUPS.indexOf(myItem);
             myItem = null; document.getElementById('item-slot').innerText = "❓";
             
-            if(idx === 0) { maxSpeed = 5; speed = 5; setTimeout(() => maxSpeed = 3.5, 4000); } // Nitro
-            else if(idx === 1) { effects.shield = true; myCart.children[0].material.emissive.setHex(0x0000ff); } // Escudo
-            else if(idx === 2) { effects.ghost = true; myCart.children[0].material.opacity = 0.4; setTimeout(() => { effects.ghost = false; myCart.children[0].material.opacity = 1; }, 5000); } // Fantasma
-            else if(idx === 3) { effects.superJump = true; myCart.children[0].material.emissive.setHex(0xff00ea); } // Salto
-            else if(idx === 4) { if(isHost) broadcast({type:'turtle', sender:peer.id}); else hostConnection.send({type:'turtle'}); } // Tortuga
-            else if(idx === 5) { myCart.scale.set(0.5,0.5,0.5); setTimeout(() => myCart.scale.set(1,1,1), 8000); } // Mini
+            if(idx === 0) { // Nitro 🚀
+                maxSpeed = 6.5; speed = 6.5; 
+                createParticleBurst(myCart.position, 0x00f3ff, 25, 0.25);
+                setTimeout(() => maxSpeed = 3.5, 4000); 
+            } 
+            else if(idx === 1) { // Shield 🛡️
+                effects.shield = true; 
+                myCart.children[0].material.emissive.setHex(0x0000ff); 
+            } 
+            else if(idx === 2) { // Ghost 👻
+                effects.ghost = true; 
+                myCart.children[0].material.opacity = 0.4; 
+                setTimeout(() => { effects.ghost = false; myCart.children[0].material.opacity = 1; }, 5000); 
+            } 
+            else if(idx === 3) { // Super Jump 🦘
+                effects.superJump = true; 
+                myCart.children[0].material.emissive.setHex(0xff00ea); 
+            } 
+            else if(idx === 4) { // Turtle 🐢
+                if(isHost) broadcast({type:'turtle', sender:peer.id}); else hostConnection.send({type:'turtle'}); 
+            } 
+            else if(idx === 5) { // Mini 💎
+                myCart.scale.set(0.5,0.5,0.5); 
+                setTimeout(() => myCart.scale.set(1,1,1), 8000); 
+            }
+            // --- Requirement 5: 6 NEW POWER-UPS ---
+            else if(idx === 6) { // Bomb 💣
+                const bombZ = myCart.position.z + 4.5;
+                if (isHost) {
+                    broadcast({ type: 'spawnBomb', x: myCart.position.x, z: bombZ });
+                } else {
+                    hostConnection.send({ type: 'spawnBomb', x: myCart.position.x, z: bombZ });
+                }
+                spawnLocalBomb(myCart.position.x, bombZ);
+            }
+            else if(idx === 7) { // Lightning ⚡
+                if (isHost) {
+                    broadcast({ type: 'lightning', sender: peer.id });
+                } else {
+                    hostConnection.send({ type: 'lightning' });
+                }
+                createParticleBurst(myCart.position, 0x00ffff, 30, 0.3);
+            }
+            else if(idx === 8) { // Freeze ❄️
+                if (isHost) {
+                    broadcast({ type: 'freeze', sender: peer.id });
+                } else {
+                    hostConnection.send({ type: 'freeze' });
+                }
+                createParticleBurst(myCart.position, 0xaaddff, 30, 0.2);
+            }
+            else if(idx === 9) { // Magnet 🧲
+                effects.magnetTime = 5.0;
+            }
+            else if(idx === 10) { // Teleport 🌀
+                createParticleBurst(myCart.position, 0xff00ea, 20, 0.15);
+                myCart.position.z -= 45.0;
+                createParticleBurst(myCart.position, 0xff00ea, 20, 0.15);
+                SFX.jump();
+            }
+            else if(idx === 11) { // Fire Trail 🔥
+                effects.fireTrailTime = 6.0;
+            }
         }
 
         function animate() {
             if(!isPlaying) return;
             requestAnimationFrame(animate);
 
-            // Controles X (Lerp hacia el carril actual)
-            myCart.position.x += (LANES[currentLaneIdx] - myCart.position.x) * 0.2;
+            // Countdown frozen stage check
+            if (!isCountdown) {
+                // Steer lerping to the current track rail
+                myCart.position.x += (LANES[currentLaneIdx] - myCart.position.x) * 0.2;
 
-            // Aceleración Z
-            if(input.speedUp) speed += 0.05; else if(input.speedDown) speed -= 0.05; else speed *= 0.98;
-            speed = Math.max(0, Math.min(speed, maxSpeed));
-            myCart.position.z -= speed;
+                // Speed adjustments exclusively when the buttons are held (Requirement 7: No automatic friction decay!)
+                if (input.speedUp) {
+                    speed += 0.035;
+                } else if (input.speedDown) {
+                    speed -= 0.035;
+                }
+                speed = Math.max(0, Math.min(speed, maxSpeed));
+                myCart.position.z -= speed;
 
-            // Salto
-            if(input.jump && isGrounded) { 
-                velocityY = effects.superJump ? 0.7 : 0.4; 
-                isGrounded = false; SFX.jump(); input.jump = false; 
-                if(effects.superJump) { effects.superJump=false; myCart.children[0].material.emissive.setHex(0x000000); }
+                // Physics Jumps
+                if(input.jump && isGrounded) { 
+                    velocityY = effects.superJump ? 0.72 : 0.42; 
+                    isGrounded = false; SFX.jump(); input.jump = false; 
+                    createParticleBurst(myCart.position, 0xffffff, 8, 0.1);
+                    if(effects.superJump) { effects.superJump=false; myCart.children[0].material.emissive.setHex(0x000000); }
+                }
+                myCart.position.y += velocityY;
+                if(myCart.position.y > 0) velocityY -= 0.02;
+                if(myCart.position.y <= 0) { myCart.position.y = 0; velocityY = 0; isGrounded = true; }
+            } else {
+                speed = 0; // Freeze movement during countdown phase
             }
-            myCart.position.y += velocityY;
-            if(myCart.position.y > 0) velocityY -= 0.02;
-            if(myCart.position.y <= 0) { myCart.position.y = 0; velocityY = 0; isGrounded = true; }
+
+            // Visual Cart Wobbling / Rocking Animation (Requirement 4)
+            if (myCart.children[0]) {
+                myCart.children[0].rotation.z = Math.sin(Date.now() * 0.015) * 0.03 * (speed / maxSpeed);
+                myCart.children[0].rotation.x = Math.sin(Date.now() * 0.02) * 0.025 * (speed / maxSpeed);
+            }
+
+            // Spin-out animations (Lightning effect)
+            if (effects.spinTime > 0) {
+                effects.spinTime -= 0.016;
+                myCart.rotation.y += 0.3;
+                createParticleBurst(myCart.position, 0x00ffff, 1, 0.08);
+            } else {
+                myCart.rotation.y = 0;
+            }
+
+            // Magnet Attraction Effect
+            if (effects.magnetTime > 0) {
+                effects.magnetTime -= 0.016;
+                createParticleBurst(myCart.position, 0xff0055, 1, 0.08);
+                itemBoxes.forEach(ib => {
+                    if (ib.active) {
+                        const distance = myCart.position.distanceTo(ib.mesh.position);
+                        if (distance < 45) {
+                            ib.mesh.position.lerp(myCart.position, 0.08);
+                            ib.box.setFromObject(ib.mesh);
+                        }
+                    }
+                });
+            }
+
+            // Fire Trail Sparking
+            if (effects.fireTrailTime > 0) {
+                effects.fireTrailTime -= 0.016;
+                if (Math.random() < 0.3) {
+                    createParticleBurst(new THREE.Vector3(myCart.position.x, 0.1, myCart.position.z + 1.2), 0xff3700, 3, 0.12);
+                }
+                for (let id in playersData) {
+                    if (id !== peer.id) {
+                        const p = playersData[id];
+                        if (Math.abs(p.x - myCart.position.x) < 0.6 && p.z > myCart.position.z && p.z - myCart.position.z < 18) {
+                            if (isHost) {
+                                broadcast({ type: 'burn', target: id });
+                            } else {
+                                hostConnection.send({ type: 'burn', target: id });
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Freeze Block Encasement
+            if (effects.freezeTime > 0) {
+                effects.freezeTime -= 0.016;
+                speed = Math.min(speed, 0.7);
+                if (!myCart.userData.iceMesh) {
+                    const iceGeo = new THREE.BoxGeometry(1.4, 0.9, 2.1);
+                    const iceMat = new THREE.MeshStandardMaterial({ color: 0x8be5ff, transparent: true, opacity: 0.6, roughness: 0.1 });
+                    myCart.userData.iceMesh = new THREE.Mesh(iceGeo, iceMat);
+                    myCart.userData.iceMesh.position.y = 0.35;
+                    myCart.add(myCart.userData.iceMesh);
+                }
+            } else {
+                if (myCart.userData.iceMesh) {
+                    myCart.remove(myCart.userData.iceMesh);
+                    myCart.userData.iceMesh = null;
+                    createParticleBurst(myCart.position, 0xd4f5ff, 15, 0.16);
+                }
+            }
+
+            // Animate spinning cart wheels dynamically with velocity (Requirement 4)
+            if (myCart.userData && myCart.userData.wheels) {
+                myCart.userData.wheels.forEach(w => {
+                    w.rotation.x -= speed * 0.12;
+                });
+            }
+
+            // Particle System Simulation Update
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.mesh.position.add(p.velocity);
+                p.life -= p.decay;
+                p.mesh.material.opacity = p.life;
+                p.mesh.scale.setScalar(p.life);
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    p.mesh.geometry.dispose();
+                    p.mesh.material.dispose();
+                    particles.splice(i, 1);
+                }
+            }
 
             const myBox = new THREE.Box3().setFromObject(myCart);
             myBox.min.addScalar(0.2); myBox.max.subScalar(0.2);
 
-            // Colisiones Obstáculos
+            // Obstacles Collision checks
             if(!effects.ghost) {
                 for(let o of obstacles) {
                     if(myCart.position.z - o.mesh.position.z > 10) continue;
                     if(myBox.intersectsBox(o.box)) {
-                        if(effects.shield) { effects.shield = false; o.mesh.position.y = -10; myCart.children[0].material.emissive.setHex(0x000000); SFX.crash(); break; }
-                        SFX.crash(); myCart.position.set(0,0,0); speed = 0; currentLaneIdx = 1; break;
+                        if(effects.shield) { 
+                            effects.shield = false; 
+                            o.mesh.position.y = -10; 
+                            myCart.children[0].material.emissive.setHex(0x000000); 
+                            SFX.crash(); 
+                            createParticleBurst(myCart.position, 0x00ffcc, 25, 0.2);
+                            break; 
+                        }
+                        SFX.crash(); 
+                        createParticleBurst(myCart.position, o.isBomb ? 0xff3c00 : 0xff9900, 30, 0.25);
+                        myCart.position.set(0,0,0); 
+                        speed = 1.5; 
+                        currentLaneIdx = 1; 
+                        break;
                     }
                 }
             }
 
-            // Colisiones Items
+            // Item pickup boxes with hovering floating mechanics & rotations (Requirement 4)
             for(let ib of itemBoxes) {
-                if(ib.active && myCart.position.z - ib.mesh.position.z < 10) {
-                    ib.mesh.rotation.y += 0.05;
-                    ib.mesh.rotation.z += 0.02;
-                    if(myBox.intersectsBox(ib.box)) {
-                        ib.active = false; ib.mesh.visible = false; SFX.itemGet();
-                        if(!myItem) { myItem = POWERUPS[Math.floor(Math.random()*6)]; document.getElementById('item-slot').innerText = myItem; }
+                if(ib.active) {
+                    // Constant item rotations
+                    ib.mesh.rotation.y += 0.035;
+                    ib.mesh.rotation.z += 0.015;
+                    // Bouncy hover movement
+                    ib.mesh.position.y = 0.5 + Math.sin(Date.now() * 0.003 + ib.mesh.position.z) * 0.15;
+
+                    if(myCart.position.z - ib.mesh.position.z < 10) {
+                        if(myBox.intersectsBox(ib.box)) {
+                            ib.active = false; ib.mesh.visible = false; SFX.itemGet();
+                            createParticleBurst(ib.mesh.position, 0xffd700, 18, 0.15);
+                            if(!myItem) { 
+                                myItem = POWERUPS[Math.floor(Math.random()*POWERUPS.length)]; 
+                                document.getElementById('item-slot').innerText = myItem; 
+                            }
+                        }
                     }
                 }
             }
 
-            // Meta
+            // Finish Line
             if(myCart.position.z <= -trackLength) {
                 if(isHost) handlePlayerWin(peer.id); else { hostConnection.send({type: 'win'}); isPlaying = false; }
             }
 
-            // Remotos y Leaderboard
-            let lbdHtml = "<strong>POSICIONES:</strong><br>"; let sortable = [];
+            // Remote Carts Update & Leaderboard
+            let lbdHtml = "<strong>STANDINGS:</strong><br>"; let sortable = [];
             for(let id in playersData) {
-                if(id !== peer.id && otherCarts[id]) otherCarts[id].position.lerp(new THREE.Vector3(playersData[id].x, playersData[id].y, playersData[id].z), 0.2);
+                if(id !== peer.id && otherCarts[id]) {
+                    otherCarts[id].position.lerp(new THREE.Vector3(playersData[id].x, playersData[id].y, playersData[id].z), 0.2);
+                    if (otherCarts[id].userData && otherCarts[id].userData.wheels) {
+                        otherCarts[id].userData.wheels.forEach(w => {
+                            w.rotation.x -= 0.2; 
+                        });
+                    }
+                }
                 sortable.push({ name: playersData[id].name, z: playersData[id].z });
             }
             sortable.sort((a,b) => a.z - b.z);
             sortable.forEach((p, i) => lbdHtml += `${i+1}. ${p.name}<br>`);
             document.getElementById('leaderboard').innerHTML = lbdHtml;
 
-            // Cámara
+            // Camera follow system
             camera.position.lerp(new THREE.Vector3(myCart.position.x + camOffset.x, myCart.position.y + 4 + camOffset.y, myCart.position.z + 8), 0.1);
             camera.lookAt(myCart.position.x, myCart.position.y, myCart.position.z - 5);
 
@@ -477,7 +970,7 @@
         }
 
         // ==========================================
-        // INPUTS Y MINIMAPA
+        // INPUT CONTROLS & MINIMAP
         // ==========================================
         let camOffset = { x: 0, y: 0 }, isDraggingCam = false, lastTouchX = 0, lastTouchY = 0;
 
@@ -490,9 +983,9 @@
                 btn.addEventListener('mouseup', () => input[key] = false);
             };
             
-            // Movimiento por carriles (un solo tap)
-            const moveLeft = (e) => { if(e) e.preventDefault(); if(currentLaneIdx > 0) currentLaneIdx--; };
-            const moveRight = (e) => { if(e) e.preventDefault(); if(currentLaneIdx < 3) currentLaneIdx++; };
+            // Single tap steer mechanics
+            const moveLeft = (e) => { if(e) e.preventDefault(); if(currentLaneIdx > 0 && !isCountdown) { currentLaneIdx--; SFX.jump(); } };
+            const moveRight = (e) => { if(e) e.preventDefault(); if(currentLaneIdx < 3 && !isCountdown) { currentLaneIdx++; SFX.jump(); } };
             
             document.getElementById('btn-left').addEventListener('touchstart', moveLeft);
             document.getElementById('btn-left').addEventListener('mousedown', moveLeft);
@@ -504,6 +997,7 @@
 
             bindContinuous('btn-jump', 'jump'); bindContinuous('btn-fast', 'speedUp'); bindContinuous('btn-slow', 'speedDown');
 
+            // Drag Camera Look-around
             renderer.domElement.addEventListener('touchstart', e => { isDraggingCam = true; lastTouchX = e.touches[0].clientX; lastTouchY = e.touches[0].clientY; });
             renderer.domElement.addEventListener('touchmove', e => {
                 if(!isDraggingCam) return;
@@ -512,13 +1006,51 @@
                 lastTouchX = e.touches[0].clientX; lastTouchY = e.touches[0].clientY;
             });
             renderer.domElement.addEventListener('touchend', () => { isDraggingCam = false; camOffset.x=0; camOffset.y=0; });
+
+            // Keyboard Controls (Requirement 8)
+            window.addEventListener('keydown', e => {
+                if (!isPlaying || isCountdown) return;
+                const key = e.key.toLowerCase();
+                
+                if (key === 'arrowleft' || key === 'a') {
+                    if (currentLaneIdx > 0) { currentLaneIdx--; SFX.jump(); }
+                }
+                else if (key === 'arrowright' || key === 'd') {
+                    if (currentLaneIdx < 3) { currentLaneIdx++; SFX.jump(); }
+                }
+                else if (key === 'arrowup' || key === 'w' || key === ' ') {
+                    input.jump = true;
+                }
+                else if (key === 'arrowdown' || key === 's' || e.key === 'Shift') {
+                    useItem();
+                }
+                else if (key === '+' || key === '=' || key === 'e') {
+                    input.speedUp = true;
+                }
+                else if (key === '-' || key === 'q') {
+                    input.speedDown = true;
+                }
+            });
+
+            window.addEventListener('keyup', e => {
+                const key = e.key.toLowerCase();
+                if (key === '+' || key === '=' || key === 'e') {
+                    input.speedUp = false;
+                }
+                else if (key === '-' || key === 'q') {
+                    input.speedDown = false;
+                }
+                else if (key === 'arrowup' || key === 'w' || key === ' ') {
+                    input.jump = false;
+                }
+            });
         }
 
         const mCtx = document.getElementById('minimap').getContext('2d');
         function drawMinimap() {
             mCtx.clearRect(0,0, 120, 120);
             const w = 120, h = 120, myZ = myCart.position.z, viewRange = 200;
-            mCtx.fillStyle = '#333'; mCtx.fillRect(w/2 - 15, 0, 30, h); // 4 rails map
+            mCtx.fillStyle = '#333'; mCtx.fillRect(w/2 - 15, 0, 30, h); 
             const getZtoY = z => h - ((myZ - z) / viewRange) * h;
 
             mCtx.fillStyle = 'red';
@@ -534,3 +1066,4 @@
     </script>
 </body>
 </html>
+
