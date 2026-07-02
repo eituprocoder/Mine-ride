@@ -1,4 +1,4 @@
-const cacheName = 'mineride'; 
+const cacheName = 'mineride-v1'; 
 
 const assets = [
   './',
