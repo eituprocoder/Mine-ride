@@ -3,114 +3,351 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tetris Showdown</title>
+    <title>Tetris Showdown 100 - Cyberpunk Edition</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body {
-            background: #1e1e24; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-            min-height: 100vh; margin: 0; overflow-x: hidden;
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;700&display=swap');
+
+        :root {
+            --neon-blue: #00f0ff;
+            --neon-pink: #ff0055;
+            --neon-purple: #7000ff;
+            --neon-yellow: #ffe600;
+            --neon-green: #00ff66;
+            --bg-dark: #070913;
+            --card-bg: rgba(18, 24, 43, 0.85);
+            --border-glow: rgba(0, 240, 255, 0.4);
         }
-        h1, h2, h3 { margin: 10px 0; text-align: center; }
-        .screen { display: none; width: 100%; max-width: 1000px; padding: 20px; box-sizing: border-box; }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background: var(--bg-dark);
+            color: #fff;
+            font-family: 'Rajdhani', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 50% 20%, rgba(112, 0, 255, 0.15), transparent 60%),
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 100% 100%, 30px 30px, 30px 30px;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Orbitron', sans-serif;
+            margin: 10px 0;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            color: #fff;
+            text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue);
+        }
+
+        .screen { display: none; width: 100%; max-width: 1200px; padding: 20px; box-sizing: border-box; }
         .active { display: flex; flex-direction: column; align-items: center; }
-        
-        /* UI Elements */
-        input[type="text"] { padding: 10px; margin: 5px; border-radius: 5px; border: none; font-size: 16px; text-align: center;}
-        button { padding: 12px 20px; margin: 5px; font-size: 16px; background: #4a4e69; color: white; border: none; border-radius: 5px; cursor: pointer; transition: 0.2s; }
-        button:hover { background: #22223b; }
-        button:disabled { background: #555; cursor: not-allowed; }
-        .menu-box { background: #2b2d42; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px; width: 100%; max-width: 400px;}
-        
-        /* Game Area */
+
+        /* UI Controls */
+        input[type="text"] {
+            padding: 12px 15px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border: 2px solid var(--neon-blue);
+            background: rgba(5, 10, 25, 0.9);
+            color: #fff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 15px;
+            text-align: center;
+            outline: none;
+            box-shadow: inset 0 0 10px rgba(0,240,255,0.2);
+            width: 100%;
+        }
+        input[type="text"]:focus {
+            border-color: var(--neon-pink);
+            box-shadow: 0 0 12px var(--neon-pink);
+        }
+
+        button {
+            padding: 12px 20px;
+            margin: 6px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(112, 0, 255, 0.4));
+            color: #fff;
+            border: 2px solid var(--neon-blue);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 10px rgba(0,240,255,0.3);
+            letter-spacing: 1px;
+        }
+        button:hover {
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+            color: #000;
+            box-shadow: 0 0 20px var(--neon-blue);
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #222533;
+            border-color: #444a66;
+            color: #666e88;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .menu-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border-glow);
+            padding: 22px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(0, 240, 255, 0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Sudden Death Header Bar */
+        #sudden-death-bar {
+            display: none;
+            width: 100%;
+            max-width: 800px;
+            background: rgba(255, 0, 85, 0.15);
+            border: 2px solid var(--neon-pink);
+            border-radius: 8px;
+            padding: 10px 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 0 20px rgba(255,0,85,0.4);
+            animation: pulse-sd 1.5s infinite alternate;
+        }
+        @keyframes pulse-sd {
+            from { box-shadow: 0 0 10px rgba(255,0,85,0.3); }
+            to { box-shadow: 0 0 25px rgba(255,0,85,0.8); }
+        }
+        .sd-title {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--neon-pink);
+            font-size: 18px;
+            font-weight: 900;
+            text-align: center;
+            text-shadow: 0 0 8px var(--neon-pink);
+        }
+        .timer-progress-bg {
+            width: 100%;
+            height: 12px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--neon-pink);
+            margin-top: 8px;
+        }
+        .timer-progress-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, var(--neon-yellow), var(--neon-pink));
+            transition: width 1s linear;
+        }
+
+        /* Game Layout */
         #game-layout { display: flex; flex-wrap: wrap; width: 100%; justify-content: center; gap: 20px; position: relative; }
         #main-player { display: flex; flex-direction: column; align-items: center; }
-        .board-container { display: flex; gap: 15px; align-items: flex-start;}
-        canvas { background-color: #000; border: 2px solid #8d99ae; border-radius: 4px; box-shadow: 0 0 10px rgba(0,0,0,0.5);}
-        #tetris { height: 60vh; }
-        #next-piece { width: 80px; height: 80px; }
+        .board-container { display: flex; gap: 15px; align-items: flex-start; }
         
+        canvas {
+            background-color: #030611;
+            border: 2px solid var(--neon-blue);
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+        }
+        #tetris { height: 60vh; max-height: 520px; }
+        #next-piece { width: 90px; height: 90px; }
+
         /* Opponents */
-        #opponents-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 600px; }
-        .opponent { display: flex; flex-direction: column; align-items: center; background: #2b2d42; padding: 10px; border-radius: 8px; }
-        .opponent canvas { height: 200px; border: 1px solid #555; }
-        .opponent-name { font-size: 14px; margin-bottom: 5px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; width: 100px; text-align: center; }
-        .target-btn { font-size: 12px; padding: 5px 10px; margin-top: 5px; background: #c1121f; }
-        .target-btn.selected { background: #780000; border: 2px solid #fdf0d5; font-weight: bold; }
-        
+        #opponents-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            max-width: 650px;
+            max-height: 65vh;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(5, 10, 25, 0.4);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        #opponents-container::-webkit-scrollbar { width: 6px; }
+        #opponents-container::-webkit-scrollbar-thumb { background: var(--neon-blue); border-radius: 3px; }
+
+        .opponent {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: var(--card-bg);
+            border: 1px solid rgba(0,240,255,0.2);
+            padding: 8px;
+            border-radius: 8px;
+            position: relative;
+        }
+        .opponent canvas { height: 130px; border: 1px solid #333; box-shadow: none; }
+        .opponent-name {
+            font-size: 12px;
+            font-family: 'Orbitron', sans-serif;
+            margin-bottom: 4px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+            width: 80px;
+            text-align: center;
+            color: #a0aec0;
+        }
+        .opponent.is-bot .opponent-name { color: var(--neon-yellow); }
+        .target-btn {
+            font-size: 10px;
+            padding: 4px 8px;
+            margin-top: 4px;
+            background: rgba(255,0,85,0.2);
+            border: 1px solid var(--neon-pink);
+            color: var(--neon-pink);
+        }
+        .target-btn.selected {
+            background: var(--neon-pink);
+            color: #000;
+            font-weight: bold;
+            box-shadow: 0 0 10px var(--neon-pink);
+        }
+
         /* Controls */
-        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; width: 90%; max-width: 300px; }
-        .controls button { padding: 15px; font-size: 20px; touch-action: manipulation; }
-        .attack-btn { background: #e63946 !important; font-weight: bold; }
-        .attack-btn:active { background: #a8202a !important; }
-        
-        /* Info */
-        .stats { display: flex; flex-direction: column; gap: 10px; font-size: 16px; background: #2b2d42; padding: 15px; border-radius: 8px;}
-        .trophy { color: gold; font-weight: bold; }
-        .charge-text { color: #0DFF72; font-weight: bold; }
-        
-        /* Overlays */
-        #room-id-display { font-size: 24px; font-weight: bold; color: #e63946; user-select: all; margin: 10px 0;}
+        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; width: 100%; max-width: 320px; }
+        .controls button { padding: 14px; font-size: 18px; touch-action: manipulation; margin: 0; }
+        .attack-btn {
+            background: linear-gradient(135deg, rgba(255,0,85,0.4), rgba(255,0,0,0.8)) !important;
+            border-color: var(--neon-pink) !important;
+        }
+        .attack-btn:active { background: var(--neon-pink) !important; }
+
+        /* Stats HUD */
+        .stats {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            font-size: 15px;
+            font-family: 'Orbitron', sans-serif;
+            background: var(--card-bg);
+            border: 1px solid var(--border-glow);
+            padding: 15px;
+            border-radius: 8px;
+            min-width: 130px;
+        }
+        .trophy { color: var(--neon-yellow); font-weight: bold; }
+        .charge-text { color: var(--neon-green); font-weight: bold; }
+        .alive-badge { color: var(--neon-blue); font-weight: bold; }
+
+        /* Lobby list */
+        #room-id-display { font-size: 20px; font-weight: bold; color: var(--neon-pink); user-select: all; margin: 8px 0; font-family: 'Orbitron', sans-serif;}
         #qr-code { background: white; padding: 10px; border-radius: 8px; margin: 10px auto; display: none; }
-        .player-list { list-style: none; padding: 0; width: 100%; max-width: 300px;}
-        .player-list li { background: #4a4e69; margin: 5px 0; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between;}
-        
-        /* Tutorial Box */
-        #tutorial-box { display: none; position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: #2a9d8f; padding: 20px; border-radius: 8px; z-index: 100; text-align: center; border: 3px solid #fff; width: 90%; max-width: 400px; box-shadow: 0 0 15px rgba(0,0,0,0.8);}
+        .player-list { list-style: none; padding: 0; width: 100%; max-width: 350px; max-height: 200px; overflow-y: auto; }
+        .player-list li {
+            background: rgba(20, 30, 55, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            margin: 4px 0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+        /* Tutorial Overlay */
+        #tutorial-box {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 25, 45, 0.95);
+            border: 2px solid var(--neon-blue);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+            text-align: center;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 0 25px rgba(0,240,255,0.6);
+        }
+
+        /* Audio Tracks Storage */
+        .audio-status { font-size: 12px; color: var(--neon-green); margin-top: 5px; }
     </style>
 </head>
 <body>
 
     <div id="screen-menu" class="screen active">
-        <h1>Tetris Showdown</h1>
+        <h1>Tetris Showdown 100</h1>
         <div class="menu-box">
-            <h3>Player Info</h3>
-            <input type="text" id="player-name" placeholder="Enter your Name" maxlength="12">
-            <div style="margin-top: 10px;"><span class="trophy">🏆 Trophies: <span id="menu-trophies">0</span></span></div>
+            <h3>Player Profile</h3>
+            <input type="text" id="player-name" placeholder="ENTER CALLSIGN" maxlength="12">
+            <div style="margin-top: 10px;"><span class="trophy">🏆 TROPHIES: <span id="menu-trophies">0</span></span></div>
         </div>
 
         <div class="menu-box">
             <h3>Game Modes</h3>
-            <button onclick="startSoloGame()" style="background: #e63946;">Play Solo</button>
-            <button onclick="startTutorial()" style="background: #2a9d8f;">How to Play (Tutorial)</button>
+            <button onclick="startSoloGame()" style="background: linear-gradient(135deg, #7000ff, #00f0ff); width: 90%;">Battle Bots (Solo vs 99 AI)</button>
+            <button onclick="startTutorial()" style="background: linear-gradient(135deg, #00ff66, #00f0ff); color: #000; width: 90%; margin-top: 10px;">Training Tutorial</button>
         </div>
 
         <div class="menu-box">
-            <h3>Music Selection (Host Stream)</h3>
-            <label>Upload File (Required for custom music)</label>
-            <input type="file" id="audio-file" accept="audio/*" style="margin-top:10px;">
-        </div>
-
-        <div class="menu-box">
-            <h3>Multiplayer PvP</h3>
-            <button id="btn-create" onclick="createRoom()">Create Room (Host)</button>
-            <hr style="border: 1px solid #444; margin: 15px 0;">
-            <input type="text" id="room-id-input" placeholder="Enter Room ID">
-            <button id="btn-join" onclick="joinRoom()">Join Room</button>
-            <p id="menu-status"></p>
+            <h3>Multiplayer Battle Royale</h3>
+            <button id="btn-create" onclick="createRoom()">Host Room (100 Max)</button>
+            <hr style="border: 0; height: 1px; background: var(--border-glow); margin: 15px 0;">
+            <input type="text" id="room-id-input" placeholder="ENTER ROOM ID">
+            <button id="btn-join" onclick="joinRoom()">Join Match</button>
+            <p id="menu-status" style="color: var(--neon-yellow); font-size: 13px;"></p>
         </div>
     </div>
 
     <div id="screen-lobby" class="screen">
-        <h2>Waiting Lobby</h2>
-        <p>Room ID (Share this):</p>
-        <div id="room-id-display">Connecting...</div>
+        <h2>Match Lobby</h2>
+        <p>ROOM CODE (CLICK TO SHARE):</p>
+        <div id="room-id-display">CONNECTING...</div>
         <div id="qr-code"></div>
         
-        <h3>Players (<span id="player-count">1</span>/10)</h3>
+        <h3>PLAYERS CONNECTED (<span id="player-count">1</span>/100)</h3>
+        <p style="font-size: 12px; color: #a0aec0;">*Missing player slots will automatically fill with Cyber-Bots upon start!</p>
         <ul class="player-list" id="lobby-players"></ul>
         
-        <button id="btn-start" onclick="startGame()" style="display:none; background: #2a9d8f;">Start Game</button>
-        <button onclick="leaveRoom()">Leave</button>
+        <button id="btn-start" onclick="startGame()" style="display:none; background: linear-gradient(135deg, var(--neon-green), #00b344); color:#000;">Launch Match (Fill 100 Bots)</button>
+        <button onclick="leaveRoom()">Disconnect</button>
     </div>
 
     <div id="screen-game" class="screen">
+        <!-- Sudden Death Bar -->
+        <div id="sudden-death-bar">
+            <div class="sd-title">⚠️ SUDDEN DEATH MODE ⚠️ - TIME REMAINING: <span id="sd-timer">03:00</span></div>
+            <div class="timer-progress-bg">
+                <div class="timer-progress-fill" id="sd-progress"></div>
+            </div>
+        </div>
+
         <div id="game-layout">
             
             <div id="tutorial-box">
-                <h3 id="tut-title" style="margin-top:0;">Tutorial Step</h3>
-                <p id="tut-msg"></p>
+                <h3 id="tut-title" style="margin-top:0; color:var(--neon-blue);">Tutorial Step</h3>
+                <p id="tut-msg" style="font-size: 16px; line-height: 1.4;"></p>
                 <button id="tut-btn" onclick="advanceTutorial()">Next</button>
             </div>
 
@@ -118,11 +355,12 @@
                 <div class="board-container">
                     <canvas id="tetris" width="240" height="400"></canvas>
                     <div class="stats">
-                        <div>Next:</div>
+                        <div>NEXT:</div>
                         <canvas id="next-piece" width="80" height="80"></canvas>
-                        <div>Score: <span id="score">0</span></div>
-                        <div class="charge-text">Charge: <span id="charge">0</span></div>
-                        <div>Target: <span id="current-target-name" style="color:#e63946">None</span></div>
+                        <div>SCORE: <br><span id="score" style="color:var(--neon-blue)">0</span></div>
+                        <div class="charge-text">ATTACK: <br><span id="charge">0</span></div>
+                        <div class="alive-badge">ALIVE: <br><span id="alive-count" style="color:var(--neon-yellow)">100</span>/100</div>
+                        <div>TARGET: <br><span id="current-target-name" style="color:var(--neon-pink); font-size: 11px;">None</span></div>
                     </div>
                 </div>
                 
@@ -137,8 +375,7 @@
                 </div>
             </div>
             
-            <div id="opponents-container">
-                </div>
+            <div id="opponents-container"></div>
         </div>
     </div>
 
@@ -146,13 +383,40 @@
         <h1 id="end-title">Game Over</h1>
         <h3 id="end-subtitle"></h3>
         <div class="menu-box">
-            <button id="btn-continue" onclick="continueToLobby()" style="display:none;">Continue</button>
-            <button onclick="leaveRoom()">Exit to Menu</button>
+            <button id="btn-continue" onclick="continueToLobby()" style="display:none;">Return to Lobby</button>
+            <button onclick="leaveRoom()">Main Menu</button>
         </div>
     </div>
 
+    <!-- AUDIO SYSTEM REPLACEMENT (Embedded user tracks) -->
     <script>
-        // --- GLOBAL VARIABLES ---
+        // Track references provided in environment
+        const MUSIC_SHOWDOWN = "http://googleusercontent.com/file_content/2"; // Tetris showodwn OST - Let's showdown!.mp3
+        const MUSIC_TOP10    = "http://googleusercontent.com/file_content/0"; // Tetris showdown OST - 10 players left!.mp3
+        const MUSIC_SUDDEN   = "http://googleusercontent.com/file_content/1"; // Tetris showdown OST - sudden death!.mp3
+
+        const audioPlayer = new Audio();
+        audioPlayer.loop = true;
+        audioPlayer.volume = 0.6;
+        let currentTrack = null;
+
+        function playMusicTrack(trackUrl) {
+            if (currentTrack === trackUrl) return;
+            currentTrack = trackUrl;
+            audioPlayer.pause();
+            audioPlayer.src = trackUrl;
+            audioPlayer.currentTime = 0;
+            audioPlayer.play().catch(e => console.log("Audio play deferred:", e));
+        }
+
+        function stopMusic() {
+            audioPlayer.pause();
+            currentTrack = null;
+        }
+    </script>
+
+    <script>
+        // --- GLOBAL STATE ---
         let peer = null;
         let connections = {}; 
         let hostConn = null;  
@@ -164,20 +428,22 @@
         let myName = '';
         let myTrophies = parseInt(localStorage.getItem('tetrisTrophies')) || 0;
         
-        let playersData = {}; 
+        let playersData = {}; // Stores human and bot player states
+        let botIntervals = []; // AI update timers
         let targetId = null;
         let gameState = 'MENU'; 
 
-        // Mechanics
+        // Sudden Death State
+        let isSuddenDeath = false;
+        let suddenDeathTimer = 180; // 3 mins in seconds
+        let suddenDeathInterval = null;
+
+        // Mechanics & Garbage Decaying
         let attackCharge = 0;
         let nextPieceMatrix = null;
+        let garbageRowTimestamps = []; // Tracking decaying garbage (30s lifetime)
 
-        // Audio & Streaming
-        let customAudio = null;
-        let remoteAudioNode = null;
-        let myAudioStream = null;
-
-        // --- DOM ELEMENTS ---
+        // UI & Canvases
         const screens = {
             menu: document.getElementById('screen-menu'),
             lobby: document.getElementById('screen-lobby'),
@@ -188,7 +454,7 @@
         const opponentsContainer = document.getElementById('opponents-container');
         document.getElementById('menu-trophies').innerText = myTrophies;
 
-        // --- TETRIS LOGIC ---
+        // --- TETRIS ENGINE ---
         const canvas = document.getElementById('tetris');
         const context = canvas.getContext('2d');
         context.scale(20, 20);
@@ -197,7 +463,19 @@
         const nextCtx = nextCanvas.getContext('2d');
         nextCtx.scale(20, 20);
 
-        const colors = [null, '#FF0D72', '#0DC2FF', '#0DFF72', '#F538FF', '#FF8E0D', '#FFE138', '#3877FF', '#555555']; 
+        // Neon Matrix Palette (8 = decaying garbage)
+        const colors = [
+            null, 
+            '#00f0ff', // I (Cyan)
+            '#ff0055', // L (Pink)
+            '#7000ff', // J (Purple)
+            '#ffe600', // O (Yellow)
+            '#00ff66', // Z (Green)
+            '#ff9900', // S (Orange)
+            '#0099ff', // T (Blue)
+            '#555566'  // 8 = Garbage Block
+        ]; 
+
         let arena = createMatrix(12, 20);
         let player = { pos: {x: 0, y: 0}, matrix: null, score: 0 };
         let dropCounter = 0;
@@ -227,8 +505,9 @@
         }
 
         function draw() {
-            context.fillStyle = '#000';
+            context.fillStyle = '#030611';
             context.fillRect(0, 0, canvas.width, canvas.height);
+            
             drawMatrix(arena, {x: 0, y: 0}, context);
             drawMatrix(player.matrix, player.pos, context);
             
@@ -238,7 +517,7 @@
         }
 
         function drawNextPiece() {
-            nextCtx.fillStyle = '#000';
+            nextCtx.fillStyle = '#030611';
             nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
             if (!nextPieceMatrix) return;
             
@@ -247,15 +526,18 @@
             drawMatrix(nextPieceMatrix, {x: offsetX, y: offsetY}, nextCtx);
         }
 
-        function drawMatrix(matrix, offset, ctx, scale = 1) {
+        function drawMatrix(matrix, offset, ctx) {
             matrix.forEach((row, y) => {
                 row.forEach((value, x) => {
                     if (value !== 0) {
                         ctx.fillStyle = colors[value];
-                        ctx.fillRect(x + offset.x, y + offset.y, 1, 1);
+                        ctx.fillRect(x + offset.x, y + offset.y, 0.9, 0.9);
+                        ctx.shadowColor = colors[value];
+                        ctx.shadowBlur = 4;
                     }
                 });
             });
+            ctx.shadowBlur = 0; // reset
         }
 
         function merge(arena, player) {
@@ -299,7 +581,7 @@
                     playersData[myId].alive = false;
                     sendNetworkMessage({ type: 'DIED', id: myId });
                     showEndScreen(false); 
-                    if (isHost) checkWinCondition();
+                    if (isHost) checkMatchConditions();
                 }
             }
             broadcastBoard();
@@ -309,10 +591,16 @@
             let rowCount = 0;
             outer: for (let y = arena.length - 1; y > 0; --y) {
                 for (let x = 0; x < arena[y].length; ++x) {
-                    if (arena[y][x] === 0 || arena[y][x] === 8) continue outer; 
+                    if (arena[y][x] === 0) continue outer;
                 }
                 const row = arena.splice(y, 1)[0].fill(0);
                 arena.unshift(row);
+                
+                // Remove recorded timestamp if a garbage line was cleared
+                if (garbageRowTimestamps.length > 0) {
+                    garbageRowTimestamps.pop();
+                }
+
                 ++y;
                 rowCount++;
             }
@@ -321,6 +609,33 @@
                 attackCharge += rowCount;
                 document.getElementById('score').innerText = player.score;
                 document.getElementById('charge').innerText = attackCharge;
+            }
+        }
+
+        // --- DECAYING GARBAGE MECHANIC (30 SECONDS EXPIRE) ---
+        function checkGarbageDecay() {
+            const now = Date.now();
+            let decayedCount = 0;
+
+            // Remove garbage timestamps older than 30 seconds
+            while (garbageRowTimestamps.length > 0 && (now - garbageRowTimestamps[0]) >= 30000) {
+                garbageRowTimestamps.shift();
+                decayedCount++;
+            }
+
+            // Remove garbage rows from bottom of arena
+            if (decayedCount > 0) {
+                for (let i = 0; i < decayedCount; i++) {
+                    // Find lowest row with garbage (8) and sweep it out
+                    for (let y = arena.length - 1; y >= 0; y--) {
+                        if (arena[y].includes(8)) {
+                            arena.splice(y, 1);
+                            arena.unshift(new Array(12).fill(0));
+                            break;
+                        }
+                    }
+                }
+                broadcastBoard();
             }
         }
 
@@ -335,6 +650,11 @@
                     target: targetId, 
                     lines: attackCharge 
                 });
+                
+                if (playersData[targetId].isBot && isHost) {
+                    receiveBotGarbage(targetId, attackCharge);
+                }
+
                 attackCharge = 0;
                 document.getElementById('charge').innerText = attackCharge;
             }
@@ -345,8 +665,11 @@
             for (let i = 0; i < lines; i++) {
                 arena.shift(); 
                 let newRow = new Array(12).fill(8); 
-                newRow[Math.floor(Math.random() * 12)] = 0; 
+                newRow[Math.floor(Math.random() * 12)] = 0; // single gap
                 arena.push(newRow);
+                
+                // Track creation timestamp for 30s expiry
+                garbageRowTimestamps.push(Date.now());
             }
             broadcastBoard();
         }
@@ -380,7 +703,6 @@
 
         function playerMove(dir) {
             if(gameState !== 'PLAYING') return;
-            
             if (isTutorial && tutorialStep === 2) advanceTutorial();
 
             player.pos.x += dir;
@@ -389,7 +711,6 @@
 
         function playerRotate(dir) {
             if(gameState !== 'PLAYING') return;
-            
             if (isTutorial && tutorialStep === 3) advanceTutorial();
 
             const pos = player.pos.x;
@@ -424,11 +745,113 @@
             if (dropCounter > dropInterval) {
                 playerDrop();
             }
+
+            checkGarbageDecay();
             draw();
             animationId = requestAnimationFrame(update);
         }
 
-        // --- MULTIPLAYER & SOLO LOGIC ---
+        // --- SMART BOT AI SYSTEM ---
+        function fillWithBots() {
+            const currentCount = Object.keys(playersData).length;
+            const botsNeeded = 100 - currentCount;
+            
+            for (let i = 1; i <= botsNeeded; i++) {
+                const botId = 'bot_' + Math.random().toString(36).substring(2, 9);
+                const botNames = ["CyberNaut", "Vortex", "TetraBot", "AEX_9", "Glitch", "MatrixAI", "NeonPulse", "ByteCrusher", "ZeroOne", "Krypton"];
+                const randomName = botNames[Math.floor(Math.random() * botNames.length)] + "_" + Math.floor(Math.random() * 999);
+                
+                playersData[botId] = {
+                    name: randomName,
+                    trophies: Math.floor(Math.random() * 50),
+                    alive: true,
+                    isBot: true,
+                    board: createMatrix(12, 20)
+                };
+            }
+        }
+
+        function startBotSimulation() {
+            stopBotSimulation();
+            if (!isHost) return;
+
+            for (let id in playersData) {
+                if (playersData[id].isBot) {
+                    // Create an individual loop for each bot
+                    let interval = setInterval(() => {
+                        if (gameState !== 'PLAYING') return;
+                        simBotAction(id);
+                    }, 1200 + Math.random() * 800); // Bots place pieces every 1.2s - 2.0s
+                    
+                    botIntervals.push(interval);
+                }
+            }
+        }
+
+        function stopBotSimulation() {
+            botIntervals.forEach(clearInterval);
+            botIntervals = [];
+        }
+
+        function simBotAction(botId) {
+            const bot = playersData[botId];
+            if (!bot || !bot.alive) return;
+
+            // Randomly simulate block stacking or clearing
+            let board = bot.board;
+            let clearChance = Math.random();
+
+            if (clearChance > 0.6) {
+                // Sim clear line
+                board.pop();
+                board.unshift(new Array(12).fill(0));
+                
+                // Bot attacks random alive human or bot
+                let targets = Object.keys(playersData).filter(pId => pId !== botId && playersData[pId].alive);
+                if (targets.length > 0) {
+                    let randomTarget = targets[Math.floor(Math.random() * targets.length)];
+                    if (randomTarget === myId) {
+                        receiveGarbage(1);
+                    } else if (playersData[randomTarget].isBot) {
+                        receiveBotGarbage(randomTarget, 1);
+                    } else if (connections[randomTarget]) {
+                        connections[randomTarget].send({ type: 'GARBAGE', target: randomTarget, lines: 1 });
+                    }
+                }
+            } else {
+                // Sim random blocks placed
+                let randomCol = Math.floor(Math.random() * 10);
+                for (let y = 19; y >= 0; y--) {
+                    if (board[y][randomCol] === 0) {
+                        board[y][randomCol] = Math.floor(Math.random() * 7) + 1;
+                        break;
+                    }
+                }
+            }
+
+            // Check if Bot topped out
+            if (board[0].some(val => val !== 0)) {
+                bot.alive = false;
+                sendNetworkMessage({ type: 'DIED', id: botId });
+                checkMatchConditions();
+            } else {
+                broadcastBoard(botId, board);
+            }
+        }
+
+        function receiveBotGarbage(botId, lines) {
+            let bot = playersData[botId];
+            if (!bot || !bot.alive) return;
+            for (let i = 0; i < lines; i++) {
+                bot.board.shift();
+                let newRow = new Array(12).fill(8);
+                newRow[Math.floor(Math.random() * 12)] = 0;
+                bot.board.push(newRow);
+            }
+            broadcastBoard(botId, bot.board);
+        }
+
+        // --- MULTIPLAYER & NETWORKING ---
 
         function switchScreen(screenName) {
             Object.values(screens).forEach(s => s.classList.remove('active'));
@@ -436,32 +859,16 @@
         }
 
         function initPlayerInfo() {
-            myName = document.getElementById('player-name').value.trim() || 'Player_' + Math.floor(Math.random()*1000);
+            myName = document.getElementById('player-name').value.trim() || 'CYBER_' + Math.floor(Math.random()*1000);
             playersData = {};
             targetId = null;
-        }
-
-        function setupAudioCalls() {
-            if(!peer) return;
-            peer.on('call', call => {
-                call.answer(); 
-                call.on('stream', remoteStream => {
-                    if (remoteAudioNode) {
-                        remoteAudioNode.pause();
-                        remoteAudioNode.srcObject = null;
-                    }
-                    remoteAudioNode = new Audio();
-                    remoteAudioNode.srcObject = remoteStream;
-                    remoteAudioNode.play().catch(e => console.log("Stream play error:", e));
-                });
-            });
         }
 
         function createRoom() {
             initPlayerInfo();
             isSolo = false;
             isTutorial = false;
-            statusTxt.innerText = "Creating room...";
+            statusTxt.innerText = "Initializing Peer Relay...";
             document.getElementById('btn-create').disabled = true;
             
             peer = new Peer();
@@ -471,7 +878,7 @@
                 document.getElementById('room-id-display').innerText = id;
                 document.getElementById('btn-start').style.display = 'block';
                 document.getElementById('btn-continue').style.display = 'inline-block';
-                document.getElementById('btn-continue').innerText = 'Continue (Host)';
+                document.getElementById('btn-continue').innerText = 'Lobby (Host)';
                 document.getElementById('btn-continue').onclick = continueToLobby;
                 
                 const qrContainer = document.getElementById('qr-code');
@@ -479,26 +886,25 @@
                 qrContainer.style.display = 'inline-block';
                 new QRCode(qrContainer, {
                     text: id,
-                    width: 128,
-                    height: 128,
-                    colorDark : "#e63946",
-                    colorLight : "#ffffff",
+                    width: 120,
+                    height: 120,
+                    colorDark : "#00f0ff",
+                    colorLight : "#030611",
                     correctLevel : QRCode.CorrectLevel.L
                 });
 
-                setupAudioCalls();
                 addPlayerToLobby(myId, myName, myTrophies);
                 switchScreen('lobby');
             });
 
             peer.on('connection', (conn) => {
-                if(Object.keys(connections).length >= 9) {
-                    conn.send({type: 'ERROR', msg: 'Room full'});
+                if(Object.keys(connections).length >= 99) {
+                    conn.send({type: 'ERROR', msg: 'Match Room Full (100 Max)'});
                     setTimeout(() => conn.close(), 500);
                     return;
                 }
                 if (gameState === 'PLAYING') {
-                    conn.send({type: 'ERROR', msg: 'Game already in progress'});
+                    conn.send({type: 'ERROR', msg: 'Match already in progress'});
                     setTimeout(() => conn.close(), 500);
                     return;
                 }
@@ -510,18 +916,17 @@
 
         function joinRoom() {
             const roomId = document.getElementById('room-id-input').value.trim();
-            if (!roomId) return alert("Enter a Room ID");
+            if (!roomId) return alert("Enter Room ID");
             initPlayerInfo();
             isSolo = false;
             isTutorial = false;
-            statusTxt.innerText = "Connecting...";
+            statusTxt.innerText = "Connecting to Host...";
             document.getElementById('btn-join').disabled = true;
 
             peer = new Peer();
             peer.on('open', (id) => {
                 isHost = false;
                 myId = id;
-                setupAudioCalls();
                 hostConn = peer.connect(roomId);
                 
                 hostConn.on('open', () => {
@@ -543,17 +948,18 @@
             isHost = true;
             isSolo = true;
             isTutorial = false;
-            myId = 'solo';
+            myId = 'player_main';
             
-            document.getElementById('btn-continue').innerText = 'Play Again (Solo)';
+            document.getElementById('btn-continue').innerText = 'Play Again';
             document.getElementById('btn-continue').onclick = startSoloGame;
 
             playersData[myId] = { name: myName, trophies: myTrophies, alive: true, board: createMatrix(12, 20) };
+            fillWithBots();
             
             startLocalGame();
         }
 
-        // --- TUTORIAL LOGIC ---
+        // --- TUTORIAL ---
         function startTutorial() {
             initPlayerInfo();
             isHost = true;
@@ -567,7 +973,6 @@
             document.getElementById('tutorial-box').style.display = 'block';
             startLocalGame();
             
-            // Slow down drops to practically pause it unless player hard drops
             dropInterval = 999999;
             updateTutorialUI();
         }
@@ -583,50 +988,49 @@
             const msg = document.getElementById('tut-msg');
             const btn = document.getElementById('tut-btn');
             
-            title.innerText = `Step ${tutorialStep}/10`;
+            title.innerText = `Tutorial Phase ${tutorialStep}/10`;
             btn.style.display = 'inline-block';
             btn.innerText = 'Next';
 
             switch(tutorialStep) {
                 case 1:
-                    msg.innerText = "Welcome to Tetris Showdown! Let's learn the basics.";
+                    msg.innerText = "Welcome to Cyber Tetris Showdown 100! Let's cover key mechanics.";
                     break;
                 case 2:
-                    msg.innerText = "Use the Left (←) or Right (→) buttons below to move your piece.";
-                    btn.style.display = 'none'; // Wait for user action
+                    msg.innerText = "Tap Left (←) or Right (→) controls to position your tetronimo.";
+                    btn.style.display = 'none';
                     break;
                 case 3:
-                    msg.innerText = "Great! Now press the Rotate buttons (↺ or ↻) to rotate the piece.";
+                    msg.innerText = "Great! Tap Rotate (↺ or ↻) to orient the piece.";
                     btn.style.display = 'none';
                     break;
                 case 4:
-                    msg.innerText = "Awesome. Now press the Down arrow (⬇️) to Hard Drop the piece to the floor instantly.";
+                    msg.innerText = "Press Down Arrow (⬇️) to instantly Hard Drop the piece.";
                     btn.style.display = 'none';
                     break;
                 case 5:
-                    msg.innerText = "Look at the 'Next' box above your score to plan your moves ahead of time!";
+                    msg.innerText = "Check your NEXT piece window on the right to plan ahead.";
                     break;
                 case 6:
-                    msg.innerText = "Clearing lines gives you Attack Charge. I've given you some Charge now!";
+                    msg.innerText = "Line clears generate Attack Charges! I've loaded 5 attack charges for you.";
                     attackCharge = 5;
                     document.getElementById('charge').innerText = attackCharge;
                     break;
                 case 7:
-                    msg.innerText = "In Multiplayer, you can target opponents. Click the 'Target' button under the dummy opponent.";
+                    msg.innerText = "In 100-Player Battle Royale, click Target on opponent thumbnails to target them.";
                     btn.style.display = 'none';
-                    // Inject mock opponent
-                    playersData['dummy'] = { name: "Dummy Player", trophies: 0, alive: true, board: createMatrix(12, 20) };
+                    playersData['dummy'] = { name: "Target_Dummy", trophies: 0, alive: true, board: createMatrix(12, 20) };
                     setupOpponentViews();
                     break;
                 case 8:
-                    msg.innerText = "Now click the Red Swords (⚔️) button to attack and send your Charge as garbage lines!";
+                    msg.innerText = "Now press the Red Attack Swords (⚔️) to send Garbage lines!";
                     btn.style.display = 'none';
                     break;
                 case 9:
-                    msg.innerText = "Garbage lines push blocks up. If your blocks touch the top of the board, you lose!";
+                    msg.innerText = "Garbage blocks auto-decay after 30 seconds if not cleared! When 2 players remain, 3-min Sudden Death begins!";
                     break;
                 case 10:
-                    msg.innerText = "You're ready! Be the last one standing in PvP or get a high score in Solo. Good luck!";
+                    msg.innerText = "You're trained! Win battle royales against 99 players. Good luck!";
                     btn.innerText = 'Finish';
                     btn.onclick = () => {
                         document.getElementById('tutorial-box').style.display = 'none';
@@ -635,7 +1039,6 @@
                     break;
             }
         }
-
 
         function addPlayerToLobby(id, name, trophies) {
             playersData[id] = { name, trophies, alive: true, board: createMatrix(12, 20) };
@@ -647,7 +1050,7 @@
             delete playersData[id];
             updateLobbyUI();
             if(gameState === 'PLAYING') {
-                if(!isSolo) checkWinCondition();
+                if(!isSolo) checkMatchConditions();
                 setupOpponentViews(); 
             }
             if (isHost && !isSolo) broadcastLobbyState();
@@ -660,17 +1063,14 @@
             for (let id in playersData) {
                 count++;
                 let li = document.createElement('li');
-                li.innerHTML = `<span>${playersData[id].name} ${id===myId?'(You)':''}</span> <span>🏆 ${playersData[id].trophies}</span>`;
+                li.innerHTML = `<span>${playersData[id].name} ${id===myId?'(YOU)':''}</span> <span>🏆 ${playersData[id].trophies}</span>`;
                 list.appendChild(li);
             }
             document.getElementById('player-count').innerText = count;
-            if (isHost && !isSolo) {
-                document.getElementById('btn-start').disabled = count < 2; 
-            }
         }
 
         function sendNetworkMessage(msg) {
-            if (isSolo || isTutorial) return; // Ignore networking in Solo/Tutorial
+            if (isSolo || isTutorial) return;
             if (isHost) {
                 if (msg.type === 'GARBAGE') {
                     if (msg.target === myId) receiveGarbage(msg.lines);
@@ -711,9 +1111,13 @@
                     if (playersData[data.id]) playersData[data.id].alive = false;
                     if (isHost) {
                         sendNetworkMessage(data); 
-                        checkWinCondition();
+                        checkMatchConditions();
                     }
                     autoSwitchTarget();
+                    updateAliveCount();
+                    break;
+                case 'SUDDEN_DEATH':
+                    triggerSuddenDeathUI();
                     break;
                 case 'GAME_OVER':
                     showEndScreen(data.winnerId === myId, data.winnerName);
@@ -737,10 +1141,11 @@
             if (!isSolo) sendNetworkMessage({ type: 'BOARD', id, matrix });
         }
 
-        // --- GAME FLOW ---
+        // --- GAMEPLAY FLOW & MUSIC LOGIC ---
 
         function startGame() {
             if (!isHost || isSolo) return;
+            fillWithBots(); // Auto fill up to 100 players
             sendNetworkMessage({ type: 'START' });
             startLocalGame();
         }
@@ -749,10 +1154,14 @@
             gameState = 'PLAYING';
             arena = createMatrix(12, 20);
             nextPieceMatrix = null;
+            garbageRowTimestamps = [];
             player.score = 0;
             attackCharge = 0;
-            dropInterval = isTutorial ? 999999 : 1000; 
-            
+            dropInterval = isTutorial ? 999999 : 1000;
+            isSuddenDeath = false;
+            clearInterval(suddenDeathInterval);
+            document.getElementById('sudden-death-bar').style.display = 'none';
+
             document.getElementById('score').innerText = 0;
             document.getElementById('charge').innerText = 0;
             
@@ -760,13 +1169,32 @@
                 playersData[id].alive = true;
                 playersData[id].board = createMatrix(12, 20);
             }
-            
+
             setupOpponentViews();
             playerReset();
-            startMusicAndStream();
+            
+            // Start Main Music Track
+            playMusicTrack(MUSIC_SHOWDOWN);
+
+            if (isHost) startBotSimulation();
+
             switchScreen('game');
+            updateAliveCount();
             lastTime = performance.now();
             update();
+        }
+
+        function updateAliveCount() {
+            let count = 0;
+            for (let id in playersData) {
+                if (playersData[id].alive) count++;
+            }
+            document.getElementById('alive-count').innerText = count;
+
+            // Audio Transition for Top 10
+            if (count <= 10 && count > 2 && !isSuddenDeath) {
+                playMusicTrack(MUSIC_TOP10);
+            }
         }
 
         function setupOpponentViews() {
@@ -778,7 +1206,7 @@
                 if (id === myId) continue;
                 
                 let div = document.createElement('div');
-                div.className = 'opponent';
+                div.className = 'opponent' + (playersData[id].isBot ? ' is-bot' : '');
                 div.innerHTML = `
                     <div class="opponent-name">${playersData[id].name}</div>
                     <canvas id="canvas-${id}" width="120" height="200"></canvas>
@@ -798,12 +1226,12 @@
             const opp = playersData[id];
             if (!opp || !opp.ctx) return;
             
-            opp.ctx.fillStyle = opp.alive ? '#111' : '#400'; 
+            opp.ctx.fillStyle = opp.alive ? '#030611' : '#220011'; 
             opp.ctx.fillRect(0, 0, 120, 200);
-            drawMatrix(opp.board, {x:0, y:0}, opp.ctx, 1);
+            drawMatrix(opp.board, {x:0, y:0}, opp.ctx);
             
             if (!opp.alive) {
-                opp.ctx.fillStyle = 'rgba(255,0,0,0.5)';
+                opp.ctx.fillStyle = 'rgba(255,0,85,0.4)';
                 opp.ctx.fillRect(0,0,12,20);
             }
         }
@@ -836,13 +1264,19 @@
             }
         }
 
-        function checkWinCondition() {
-            if (!isHost || isSolo || isTutorial) return;
-            let alivePlayers = [];
-            for (let id in playersData) {
-                if (playersData[id].alive) alivePlayers.push(id);
-            }
+        function checkMatchConditions() {
+            if (!isHost || isTutorial) return;
             
+            let alivePlayers = Object.keys(playersData).filter(id => playersData[id].alive);
+            
+            // Trigger 2-Player Sudden Death Mode
+            if (alivePlayers.length === 2 && !isSuddenDeath) {
+                isSuddenDeath = true;
+                sendNetworkMessage({ type: 'SUDDEN_DEATH' });
+                triggerSuddenDeathUI();
+            }
+
+            // Game Victory / Over
             if (alivePlayers.length <= 1) {
                 let winnerId = alivePlayers.length === 1 ? alivePlayers[0] : null;
                 let winnerName = winnerId ? playersData[winnerId].name : 'No one';
@@ -852,36 +1286,67 @@
             }
         }
 
+        function triggerSuddenDeathUI() {
+            isSuddenDeath = true;
+            playMusicTrack(MUSIC_SUDDEN);
+            
+            document.getElementById('sudden-death-bar').style.display = 'block';
+            suddenDeathTimer = 180; // 3 Minutes
+            
+            clearInterval(suddenDeathInterval);
+            suddenDeathInterval = setInterval(() => {
+                suddenDeathTimer--;
+                
+                let mins = Math.floor(suddenDeathTimer / 60);
+                let secs = suddenDeathTimer % 60;
+                document.getElementById('sd-timer').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                let percentage = (suddenDeathTimer / 180) * 100;
+                document.getElementById('sd-progress').style.width = percentage + '%';
+
+                // Sudden Death Garbage Surge: Every 15 seconds, inject 1 garbage line to all
+                if (suddenDeathTimer % 15 === 0 && suddenDeathTimer > 0) {
+                    receiveGarbage(1);
+                }
+
+                if (suddenDeathTimer <= 0) {
+                    clearInterval(suddenDeathInterval);
+                    if (isHost) checkMatchConditions();
+                }
+            }, 1000);
+        }
+
         function showEndScreen(isWinner, winnerName) {
             gameState = 'END';
             cancelAnimationFrame(animationId);
+            stopBotSimulation();
             stopMusic();
+            clearInterval(suddenDeathInterval);
             
             const title = document.getElementById('end-title');
             const sub = document.getElementById('end-subtitle');
             const continueBtn = document.getElementById('btn-continue');
             
-            if (isSolo) {
+            if (isSolo && Object.keys(playersData).length === 1) {
                 title.innerText = "GAME OVER";
-                title.style.color = "#FF0D72";
+                title.style.color = "var(--neon-pink)";
                 sub.innerText = `Final Score: ${player.score}`;
                 continueBtn.style.display = 'inline-block';
             } else if (isTutorial) {
-                // Tutorial doesn't use standard end screen, but just in case
                 leaveRoom();
                 return;
             } else {
                 if (isWinner) {
-                    title.innerText = "VICTORY!";
-                    title.style.color = "#0DFF72";
-                    sub.innerText = "You are the last player standing.";
-                    myTrophies += 1;
+                    title.innerText = "VICTORY ROYALE!";
+                    title.style.color = "var(--neon-green)";
+                    sub.innerText = "You defeated 99 opponents to become champion!";
+                    myTrophies += 10;
                     localStorage.setItem('tetrisTrophies', myTrophies);
                     document.getElementById('menu-trophies').innerText = myTrophies;
                 } else {
-                    title.innerText = "DEFEAT";
-                    title.style.color = "#FF0D72";
-                    sub.innerText = winnerName ? `${winnerName} won the match.` : "You have been eliminated.";
+                    title.innerText = "ELIMINATED";
+                    title.style.color = "var(--neon-pink)";
+                    sub.innerText = winnerName ? `${winnerName} won the match.` : "You were knocked out.";
                 }
                 if (isHost) continueBtn.style.display = 'inline-block';
             }
@@ -903,6 +1368,8 @@
             hostConn = null;
             playersData = {};
             stopMusic();
+            stopBotSimulation();
+            clearInterval(suddenDeathInterval);
             document.getElementById('btn-create').disabled = false;
             document.getElementById('btn-join').disabled = false;
             statusTxt.innerText = "";
@@ -911,46 +1378,7 @@
             gameState = 'MENU';
         }
 
-        // --- MUSIC LGOIC ---
-        function startMusicAndStream() {
-            stopMusic();
-            
-            if (isHost || isSolo) {
-                const fileInput = document.getElementById('audio-file');
-                if (fileInput.files.length > 0) {
-                    const url = URL.createObjectURL(fileInput.files[0]);
-                    customAudio = new Audio(url);
-                    customAudio.loop = true;
-                    customAudio.volume = 0.5;
-                    
-                    customAudio.play().then(() => {
-                        // Only stream if in a peer multiplayer room
-                        if (peer && !isSolo) {
-                            const captureFunc = customAudio.captureStream || customAudio.mozCaptureStream;
-                            if (captureFunc) {
-                                myAudioStream = captureFunc.call(customAudio);
-                                for (let id in connections) {
-                                    peer.call(id, myAudioStream);
-                                }
-                            }
-                        }
-                    }).catch(e => console.log("Audio play blocked", e));
-                }
-            }
-        }
-
-        function stopMusic() {
-            if (customAudio) {
-                customAudio.pause();
-                customAudio.currentTime = 0;
-            }
-            if (remoteAudioNode) {
-                remoteAudioNode.pause();
-                remoteAudioNode.srcObject = null;
-            }
-        }
-
-        // Keyboard inputs
+        // Key controls
         document.addEventListener('keydown', event => {
             if(gameState !== 'PLAYING') return;
             if (event.keyCode === 37) playerMove(-1);
@@ -963,3 +1391,4 @@
     </script>
 </body>
 </html>
+
