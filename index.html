@@ -580,6 +580,7 @@
                 } else {
                     playersData[myId].alive = false;
                     sendNetworkMessage({ type: 'DIED', id: myId });
+                    updateAliveCount();
                     showEndScreen(false); 
                     if (isHost) checkMatchConditions();
                 }
@@ -777,11 +778,11 @@
 
             for (let id in playersData) {
                 if (playersData[id].isBot) {
-                    // Create an individual loop for each bot
+                    // Create an individual loop for each bot to drop pieces
                     let interval = setInterval(() => {
                         if (gameState !== 'PLAYING') return;
                         simBotAction(id);
-                    }, 1200 + Math.random() * 800); // Bots place pieces every 1.2s - 2.0s
+                    }, 1200 + Math.random() * 1800);
                     
                     botIntervals.push(interval);
                 }
@@ -793,13 +794,14 @@
             botIntervals = [];
         }
 
-        function checkBotCollision(board, piece, pos) {
-            for (let y = 0; y < piece.length; ++y) {
-                for (let x = 0; x < piece[y].length; ++x) {
-                    if (piece[y][x] !== 0) {
-                        let boardY = y + pos.y;
-                        let boardX = x + pos.x;
-                        if (boardX < 0 || boardX >= 12 || boardY >= 20) return true;
+        // Helper functions for bot piece placement & collision detection
+        function checkBotCollision(board, matrix, posX, posY) {
+            for (let y = 0; y < matrix.length; y++) {
+                for (let x = 0; x < matrix[y].length; x++) {
+                    if (matrix[y][x] !== 0) {
+                        const boardY = posY + y;
+                        const boardX = posX + x;
+                        if (boardY >= 20 || boardX < 0 || boardX >= 12) return true;
                         if (boardY >= 0 && board[boardY][boardX] !== 0) return true;
                     }
                 }
@@ -807,100 +809,94 @@
             return false;
         }
 
+        function placePieceOnBotBoard(board, pieceMatrix) {
+            const rotCount = Math.floor(Math.random() * 4);
+            let matrix = pieceMatrix.map(row => [...row]);
+            for (let r = 0; r < rotCount; r++) {
+                rotate(matrix, 1);
+            }
+
+            const pieceWidth = matrix[0].length;
+            const maxX = 12 - pieceWidth;
+            if (maxX < 0) return false;
+            const posX = Math.floor(Math.random() * (maxX + 1));
+
+            let posY = 0;
+            if (checkBotCollision(board, matrix, posX, posY)) {
+                return false;
+            }
+
+            while (!checkBotCollision(board, matrix, posX, posY + 1)) {
+                posY++;
+            }
+
+            for (let y = 0; y < matrix.length; y++) {
+                for (let x = 0; x < matrix[y].length; x++) {
+                    if (matrix[y][x] !== 0) {
+                        if (posY + y < 20) {
+                            board[posY + y][posX + x] = matrix[y][x];
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        function sweepBotBoard(board) {
+            let linesCleared = 0;
+            for (let y = board.length - 1; y >= 0; y--) {
+                if (board[y].every(cell => cell !== 0)) {
+                    board.splice(y, 1);
+                    board.unshift(new Array(12).fill(0));
+                    linesCleared++;
+                    y++; // re-check index
+                }
+            }
+            return linesCleared;
+        }
+
         function simBotAction(botId) {
             const bot = playersData[botId];
             if (!bot || !bot.alive) return;
 
             let board = bot.board;
+            const pieceType = createRandomPiece();
+            const pieceMatrix = createPiece(pieceType);
 
-            // Pick a random Tetromino shape
-            let pType = createRandomPiece();
-            let piece = createPiece(pType);
+            // Place actual piece shape onto bot board
+            const success = placePieceOnBotBoard(board, pieceMatrix);
 
-            // Apply random rotations (0 to 3)
-            let rotations = Math.floor(Math.random() * 4);
-            while (rotations--) {
-                rotate(piece, 1);
-            }
-
-            // Find effective piece width
-            let minX = 4, maxX = 0;
-            piece.forEach((row, y) => {
-                row.forEach((val, x) => {
-                    if (val !== 0) {
-                        if (x < minX) minX = x;
-                        if (x > maxX) maxX = x;
-                    }
-                });
-            });
-
-            // Determine valid horizontal placement range
-            let minStart = -minX;
-            let maxStart = 11 - maxX;
-            if (minStart > maxStart) {
-                minStart = 0;
-                maxStart = 0;
-            }
-
-            let startX = Math.floor(Math.random() * (maxStart - minStart + 1)) + minStart;
-            let pos = { x: startX, y: 0 };
-
-            // Check top collision
-            if (checkBotCollision(board, piece, pos)) {
+            if (!success) {
                 bot.alive = false;
                 sendNetworkMessage({ type: 'DIED', id: botId });
+                updateAliveCount();
                 checkMatchConditions();
                 return;
             }
 
-            // Drop piece down to bottom
-            while (!checkBotCollision(board, piece, { x: pos.x, y: pos.y + 1 })) {
-                pos.y++;
-            }
+            // Check if lines were actually cleared
+            const clearedLines = sweepBotBoard(board);
 
-            // Merge piece into bot board
-            piece.forEach((row, py) => {
-                row.forEach((value, px) => {
-                    if (value !== 0) {
-                        let by = pos.y + py;
-                        let bx = pos.x + px;
-                        if (by >= 0 && by < 20 && bx >= 0 && bx < 12) {
-                            board[by][bx] = value;
-                        }
-                    }
-                });
-            });
-
-            // Check for actual line clears on bot board
-            let linesCleared = 0;
-            for (let r = 19; r >= 0; r--) {
-                if (board[r].every(val => val !== 0)) {
-                    board.splice(r, 1);
-                    board.unshift(new Array(12).fill(0));
-                    linesCleared++;
-                    r++; // Re-check row index after splice
-                }
-            }
-
-            // ONLY launch attacks if lines were actually cleared!
-            if (linesCleared > 0) {
+            // Bot ONLY attacks when it clears actual line(s)
+            if (clearedLines > 0) {
                 let targets = Object.keys(playersData).filter(pId => pId !== botId && playersData[pId].alive);
                 if (targets.length > 0) {
                     let randomTarget = targets[Math.floor(Math.random() * targets.length)];
                     if (randomTarget === myId) {
-                        receiveGarbage(linesCleared);
+                        receiveGarbage(clearedLines);
                     } else if (playersData[randomTarget].isBot) {
-                        receiveBotGarbage(randomTarget, linesCleared);
+                        receiveBotGarbage(randomTarget, clearedLines);
                     } else if (connections[randomTarget]) {
-                        connections[randomTarget].send({ type: 'GARBAGE', target: randomTarget, lines: linesCleared });
+                        connections[randomTarget].send({ type: 'GARBAGE', target: randomTarget, lines: clearedLines });
                     }
                 }
             }
 
-            // Check if bot topped out at top row
+            // Check if Bot topped out
             if (board[0].some(val => val !== 0)) {
                 bot.alive = false;
                 sendNetworkMessage({ type: 'DIED', id: botId });
+                updateAliveCount();
                 checkMatchConditions();
             } else {
                 broadcastBoard(botId, board);
@@ -1118,6 +1114,7 @@
             delete playersData[id];
             updateLobbyUI();
             if(gameState === 'PLAYING') {
+                updateAliveCount();
                 if(!isSolo) checkMatchConditions();
                 setupOpponentViews(); 
             }
