@@ -781,7 +781,7 @@
                     let interval = setInterval(() => {
                         if (gameState !== 'PLAYING') return;
                         simBotAction(id);
-                    }, 8000 + Math.random() * 10000); // Bots place pieces every 1.2s - 2.0s
+                    }, 1200 + Math.random() * 800); // Bots place pieces every 1.2s - 2.0s
                     
                     botIntervals.push(interval);
                 }
@@ -793,43 +793,111 @@
             botIntervals = [];
         }
 
+        function checkBotCollision(board, piece, pos) {
+            for (let y = 0; y < piece.length; ++y) {
+                for (let x = 0; x < piece[y].length; ++x) {
+                    if (piece[y][x] !== 0) {
+                        let boardY = y + pos.y;
+                        let boardX = x + pos.x;
+                        if (boardX < 0 || boardX >= 12 || boardY >= 20) return true;
+                        if (boardY >= 0 && board[boardY][boardX] !== 0) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         function simBotAction(botId) {
             const bot = playersData[botId];
             if (!bot || !bot.alive) return;
 
-            // Randomly simulate block stacking or clearing
             let board = bot.board;
-            let clearChance = Math.random();
 
-            if (clearChance > 0.6) {
-                // Sim clear line
-                board.pop();
-                board.unshift(new Array(12).fill(0));
-                
-                // Bot attacks random alive human or bot
+            // Pick a random Tetromino shape
+            let pType = createRandomPiece();
+            let piece = createPiece(pType);
+
+            // Apply random rotations (0 to 3)
+            let rotations = Math.floor(Math.random() * 4);
+            while (rotations--) {
+                rotate(piece, 1);
+            }
+
+            // Find effective piece width
+            let minX = 4, maxX = 0;
+            piece.forEach((row, y) => {
+                row.forEach((val, x) => {
+                    if (val !== 0) {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                    }
+                });
+            });
+
+            // Determine valid horizontal placement range
+            let minStart = -minX;
+            let maxStart = 11 - maxX;
+            if (minStart > maxStart) {
+                minStart = 0;
+                maxStart = 0;
+            }
+
+            let startX = Math.floor(Math.random() * (maxStart - minStart + 1)) + minStart;
+            let pos = { x: startX, y: 0 };
+
+            // Check top collision
+            if (checkBotCollision(board, piece, pos)) {
+                bot.alive = false;
+                sendNetworkMessage({ type: 'DIED', id: botId });
+                checkMatchConditions();
+                return;
+            }
+
+            // Drop piece down to bottom
+            while (!checkBotCollision(board, piece, { x: pos.x, y: pos.y + 1 })) {
+                pos.y++;
+            }
+
+            // Merge piece into bot board
+            piece.forEach((row, py) => {
+                row.forEach((value, px) => {
+                    if (value !== 0) {
+                        let by = pos.y + py;
+                        let bx = pos.x + px;
+                        if (by >= 0 && by < 20 && bx >= 0 && bx < 12) {
+                            board[by][bx] = value;
+                        }
+                    }
+                });
+            });
+
+            // Check for actual line clears on bot board
+            let linesCleared = 0;
+            for (let r = 19; r >= 0; r--) {
+                if (board[r].every(val => val !== 0)) {
+                    board.splice(r, 1);
+                    board.unshift(new Array(12).fill(0));
+                    linesCleared++;
+                    r++; // Re-check row index after splice
+                }
+            }
+
+            // ONLY launch attacks if lines were actually cleared!
+            if (linesCleared > 0) {
                 let targets = Object.keys(playersData).filter(pId => pId !== botId && playersData[pId].alive);
                 if (targets.length > 0) {
                     let randomTarget = targets[Math.floor(Math.random() * targets.length)];
                     if (randomTarget === myId) {
-                        receiveGarbage(1);
+                        receiveGarbage(linesCleared);
                     } else if (playersData[randomTarget].isBot) {
-                        receiveBotGarbage(randomTarget, 1);
+                        receiveBotGarbage(randomTarget, linesCleared);
                     } else if (connections[randomTarget]) {
-                        connections[randomTarget].send({ type: 'GARBAGE', target: randomTarget, lines: 1 });
-                    }
-                }
-            } else {
-                // Sim random blocks placed
-                let randomCol = Math.floor(Math.random() * 10);
-                for (let y = 19; y >= 0; y--) {
-                    if (board[y][randomCol] === 0) {
-                        board[y][randomCol] = Math.floor(Math.random() * 7) + 1;
-                        break;
+                        connections[randomTarget].send({ type: 'GARBAGE', target: randomTarget, lines: linesCleared });
                     }
                 }
             }
 
-            // Check if Bot topped out
+            // Check if bot topped out at top row
             if (board[0].some(val => val !== 0)) {
                 bot.alive = false;
                 sendNetworkMessage({ type: 'DIED', id: botId });
@@ -1391,4 +1459,3 @@
     </script>
 </body>
 </html>
-
