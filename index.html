@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tetris Showdown 100 - Cyberpunk Edition</title>
+    <title>Tetris Showdown</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -297,7 +297,7 @@
 <body>
 
     <div id="screen-menu" class="screen active">
-        <h1>Tetris Showdown 100</h1>
+        <h1>Tetris Showdown</h1>
         <div class="menu-box">
             <h3>Player Profile</h3>
             <input type="text" id="player-name" placeholder="ENTER CALLSIGN" maxlength="12">
@@ -388,30 +388,63 @@
         </div>
     </div>
 
-    <!-- AUDIO SYSTEM REPLACEMENT (Embedded user tracks) -->
+    <!-- AUDIO SYSTEM REPLACEMENT (Preloaded instant playback) -->
     <script>
         // Track references provided in environment
         const MUSIC_SHOWDOWN = "Tetris showodwn OST - Let's showdown!.mp3";
         const MUSIC_TOP10    = "Tetris showdown OST - 10 players left!.mp3";
         const MUSIC_SUDDEN   = "Tetris showdown OST - sudden death!.mp3";
 
-        const audioPlayer = new Audio();
-        audioPlayer.loop = true;
-        audioPlayer.volume = 0.6;
-        let currentTrack = null;
+        // Instant Audio Preloader Map
+        const audioTracks = {
+            [MUSIC_SHOWDOWN]: new Audio(MUSIC_SHOWDOWN),
+            [MUSIC_TOP10]: new Audio(MUSIC_TOP10),
+            [MUSIC_SUDDEN]: new Audio(MUSIC_SUDDEN)
+        };
+
+        Object.values(audioTracks).forEach(track => {
+            track.loop = true;
+            track.volume = 0.6;
+            track.preload = "auto";
+        });
+
+        let currentTrackUrl = null;
+        let audioUnlocked = false;
+
+        // Instant audio activation on any early user interaction
+        function unlockAudioSystem() {
+            if (audioUnlocked) return;
+            audioUnlocked = true;
+            Object.values(audioTracks).forEach(track => {
+                track.play().then(() => {
+                    track.pause();
+                    track.currentTime = 0;
+                }).catch(() => {});
+            });
+        }
+
+        document.addEventListener('click', unlockAudioSystem, { once: false });
+        document.addEventListener('keydown', unlockAudioSystem, { once: false });
+        document.addEventListener('touchstart', unlockAudioSystem, { once: false });
 
         function playMusicTrack(trackUrl) {
-            if (currentTrack === trackUrl) return;
-            currentTrack = trackUrl;
-            audioPlayer.pause();
-            audioPlayer.src = trackUrl;
-            audioPlayer.currentTime = 0;
-            audioPlayer.play().catch(e => console.log("Audio play deferred:", e));
+            if (currentTrackUrl === trackUrl) return;
+            stopMusic();
+            currentTrackUrl = trackUrl;
+            
+            const track = audioTracks[trackUrl];
+            if (track) {
+                track.currentTime = 0;
+                track.play().catch(e => console.log("Audio play deferred:", e));
+            }
         }
 
         function stopMusic() {
-            audioPlayer.pause();
-            currentTrack = null;
+            if (currentTrackUrl && audioTracks[currentTrackUrl]) {
+                audioTracks[currentTrackUrl].pause();
+                audioTracks[currentTrackUrl].currentTime = 0;
+            }
+            currentTrackUrl = null;
         }
     </script>
 
@@ -579,8 +612,9 @@
                     showEndScreen(false);
                 } else {
                     playersData[myId].alive = false;
-                    sendNetworkMessage({ type: 'DIED', id: myId });
                     updateAliveCount();
+                    autoSwitchTarget();
+                    sendNetworkMessage({ type: 'DIED', id: myId });
                     showEndScreen(false); 
                     if (isHost) checkMatchConditions();
                 }
@@ -778,11 +812,11 @@
 
             for (let id in playersData) {
                 if (playersData[id].isBot) {
-                    // Create an individual loop for each bot to drop pieces
+                    // Create an individual loop for each bot
                     let interval = setInterval(() => {
                         if (gameState !== 'PLAYING') return;
                         simBotAction(id);
-                    }, 1200 + Math.random() * 1800);
+                    }, 1200 + Math.random() * 1500); // Bots place pieces every 1.2s - 2.7s
                     
                     botIntervals.push(interval);
                 }
@@ -794,65 +828,73 @@
             botIntervals = [];
         }
 
-        // Helper functions for bot piece placement & collision detection
-        function checkBotCollision(board, matrix, posX, posY) {
-            for (let y = 0; y < matrix.length; y++) {
-                for (let x = 0; x < matrix[y].length; x++) {
-                    if (matrix[y][x] !== 0) {
-                        const boardY = posY + y;
-                        const boardX = posX + x;
-                        if (boardY >= 20 || boardX < 0 || boardX >= 12) return true;
-                        if (boardY >= 0 && board[boardY][boardX] !== 0) return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        function placePieceOnBotBoard(board, pieceMatrix) {
-            const rotCount = Math.floor(Math.random() * 4);
-            let matrix = pieceMatrix.map(row => [...row]);
-            for (let r = 0; r < rotCount; r++) {
-                rotate(matrix, 1);
-            }
-
+        // Places a full Tetromino shape into bot grid
+        function botPlacePiece(board) {
+            const pieceType = createRandomPiece();
+            const matrix = createPiece(pieceType);
             const pieceWidth = matrix[0].length;
+            
             const maxX = 12 - pieceWidth;
             if (maxX < 0) return false;
             const posX = Math.floor(Math.random() * (maxX + 1));
-
+            
             let posY = 0;
-            if (checkBotCollision(board, matrix, posX, posY)) {
-                return false;
-            }
-
-            while (!checkBotCollision(board, matrix, posX, posY + 1)) {
-                posY++;
-            }
-
-            for (let y = 0; y < matrix.length; y++) {
-                for (let x = 0; x < matrix[y].length; x++) {
-                    if (matrix[y][x] !== 0) {
-                        if (posY + y < 20) {
-                            board[posY + y][posX + x] = matrix[y][x];
+            
+            // Verify top entry space is open
+            for (let r = 0; r < matrix.length; r++) {
+                for (let c = 0; c < matrix[r].length; c++) {
+                    if (matrix[r][c] !== 0) {
+                        if (board[r] && board[r][posX + c] !== 0) {
+                            return false; // Topped out
                         }
+                    }
+                }
+            }
+            
+            // Hard drop piece down
+            while (true) {
+                let testY = posY + 1;
+                let collide = false;
+                for (let r = 0; r < matrix.length; r++) {
+                    for (let c = 0; c < matrix[r].length; c++) {
+                        if (matrix[r][c] !== 0) {
+                            let boardY = testY + r;
+                            let boardX = posX + c;
+                            if (boardY >= 20 || (board[boardY] && board[boardY][boardX] !== 0)) {
+                                collide = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (collide) break;
+                }
+                if (collide) break;
+                posY = testY;
+            }
+            
+            // Lock piece onto board
+            for (let r = 0; r < matrix.length; r++) {
+                for (let c = 0; c < matrix[r].length; c++) {
+                    if (matrix[r][c] !== 0 && (posY + r) < 20) {
+                        board[posY + r][posX + c] = matrix[r][c];
                     }
                 }
             }
             return true;
         }
 
-        function sweepBotBoard(board) {
-            let linesCleared = 0;
+        // Bot checks and clears completed lines
+        function botSweepBoard(board) {
+            let clearedLines = 0;
             for (let y = board.length - 1; y >= 0; y--) {
                 if (board[y].every(cell => cell !== 0)) {
                     board.splice(y, 1);
                     board.unshift(new Array(12).fill(0));
-                    linesCleared++;
-                    y++; // re-check index
+                    clearedLines++;
+                    y++; // Re-check same row index after shift
                 }
             }
-            return linesCleared;
+            return clearedLines;
         }
 
         function simBotAction(botId) {
@@ -860,43 +902,40 @@
             if (!bot || !bot.alive) return;
 
             let board = bot.board;
-            const pieceType = createRandomPiece();
-            const pieceMatrix = createPiece(pieceType);
-
-            // Place actual piece shape onto bot board
-            const success = placePieceOnBotBoard(board, pieceMatrix);
+            let success = botPlacePiece(board);
 
             if (!success) {
                 bot.alive = false;
-                sendNetworkMessage({ type: 'DIED', id: botId });
                 updateAliveCount();
+                autoSwitchTarget();
+                sendNetworkMessage({ type: 'DIED', id: botId });
                 checkMatchConditions();
                 return;
             }
 
-            // Check if lines were actually cleared
-            const clearedLines = sweepBotBoard(board);
+            let linesCleared = botSweepBoard(board);
 
-            // Bot ONLY attacks when it clears actual line(s)
-            if (clearedLines > 0) {
+            // Bot ONLY attacks if lines were actually cleared!
+            if (linesCleared > 0) {
                 let targets = Object.keys(playersData).filter(pId => pId !== botId && playersData[pId].alive);
                 if (targets.length > 0) {
                     let randomTarget = targets[Math.floor(Math.random() * targets.length)];
                     if (randomTarget === myId) {
-                        receiveGarbage(clearedLines);
+                        receiveGarbage(linesCleared);
                     } else if (playersData[randomTarget].isBot) {
-                        receiveBotGarbage(randomTarget, clearedLines);
+                        receiveBotGarbage(randomTarget, linesCleared);
                     } else if (connections[randomTarget]) {
-                        connections[randomTarget].send({ type: 'GARBAGE', target: randomTarget, lines: clearedLines });
+                        connections[randomTarget].send({ type: 'GARBAGE', target: randomTarget, lines: linesCleared });
                     }
                 }
             }
 
-            // Check if Bot topped out
+            // Check if Bot topped out after placement
             if (board[0].some(val => val !== 0)) {
                 bot.alive = false;
-                sendNetworkMessage({ type: 'DIED', id: botId });
                 updateAliveCount();
+                autoSwitchTarget();
+                sendNetworkMessage({ type: 'DIED', id: botId });
                 checkMatchConditions();
             } else {
                 broadcastBoard(botId, board);
@@ -1114,9 +1153,9 @@
             delete playersData[id];
             updateLobbyUI();
             if(gameState === 'PLAYING') {
-                updateAliveCount();
                 if(!isSolo) checkMatchConditions();
                 setupOpponentViews(); 
+                updateAliveCount();
             }
             if (isHost && !isSolo) broadcastLobbyState();
         }
@@ -1238,7 +1277,7 @@
             setupOpponentViews();
             playerReset();
             
-            // Start Main Music Track
+            // Start Main Music Track instantly
             playMusicTrack(MUSIC_SHOWDOWN);
 
             if (isHost) startBotSimulation();
